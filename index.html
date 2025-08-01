@@ -394,7 +394,6 @@
             
             myPeerId = generateFriendlyId();
             
-            // ** FIX: Ensure ID is registered before creating Peer object **
             const peerDocRef = doc(db, "peers", myPeerId);
             await setDoc(peerDocRef, { createdAt: new Date() });
             console.log("Registered Peer ID in Firestore:", myPeerId);
@@ -528,10 +527,17 @@
                 friendIdInput.value = friendIdFromUrl;
                 setTimeout(() => {
                     connectToPeer(db, friendIdFromUrl);
-                }, 500);
+                }, 1000); // Increased timeout for reliability
             }
 
             connectBtn.addEventListener('click', () => connectToPeer(db, friendIdInput.value.trim()));
+            
+            // ** FIX: Added event listener for Enter key **
+            friendIdInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    connectToPeer(db, friendIdInput.value.trim());
+                }
+            });
             
             window.addEventListener('beforeunload', async () => {
                 if (myPeerId && db) {
