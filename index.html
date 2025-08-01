@@ -238,7 +238,6 @@
         };
         alertCloseBtn.addEventListener('click', () => customAlert.classList.add('hidden'));
         
-        // ** FIX: Restored the missing function **
         const generateFriendlyId = () => {
             const adjectives = ['purple', 'green', 'blue', 'red', 'happy', 'silly', 'clever', 'brave', 'fast', 'bright'];
             const nouns = ['cat', 'dog', 'fox', 'lion', 'bird', 'fish', 'tree', 'star', 'moon', 'sun'];
@@ -387,14 +386,18 @@
         };
 
         // --- PEERJS LOGIC ---
-        const initializePeer = async (db, id) => {
+        const initializePeer = async (db) => {
             if (!db) {
                 myIdInput.value = 'Service Failed';
                 return null;
             }
             
-            myPeerId = id || generateFriendlyId();
-            console.log("Initializing Peer with ID:", myPeerId);
+            myPeerId = generateFriendlyId();
+            
+            // ** FIX: Ensure ID is registered before creating Peer object **
+            const peerDocRef = doc(db, "peers", myPeerId);
+            await setDoc(peerDocRef, { createdAt: new Date() });
+            console.log("Registered Peer ID in Firestore:", myPeerId);
 
             return new Promise((resolve) => {
                 peer = new Peer(myPeerId, { pingInterval: 5000 });
@@ -491,7 +494,6 @@
                 return;
             }
             if (idToConnect === myPeerId) {
-                // This can happen if you click your own link. Do nothing.
                 return;
             }
 
@@ -518,8 +520,8 @@
             const db = await initializeFirebase();
             if (!db) return;
 
+            const localPeer = await initializePeer(db);
             const friendIdFromUrl = window.location.hash.substring(1);
-            const localPeer = await initializePeer(db, generateFriendlyId());
 
             if (friendIdFromUrl && localPeer) {
                 console.log(`Found friend ID in URL: ${friendIdFromUrl}. Auto-connecting.`);
@@ -530,6 +532,15 @@
             }
 
             connectBtn.addEventListener('click', () => connectToPeer(db, friendIdInput.value.trim()));
+            
+            window.addEventListener('beforeunload', async () => {
+                if (myPeerId && db) {
+                   await deleteDoc(doc(db, "peers", myPeerId));
+                }
+                if (peer && !peer.destroyed) {
+                    peer.destroy();
+                }
+            });
         };
 
         // --- EVENT LISTENERS ---
