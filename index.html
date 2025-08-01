@@ -16,7 +16,6 @@
         /* Custom styles to complement Tailwind */
         body {
             font-family: 'Inter', sans-serif;
-            overflow: hidden; /* Prevent scrolling */
         }
         #drawing-canvas {
             cursor: crosshair;
@@ -59,12 +58,22 @@
             opacity: 0.5;
             cursor: not-allowed;
         }
+        /* ** FIX for Mobile Layout ** */
+        /* Canvas container needs a defined aspect ratio or height on mobile */
+        .canvas-container {
+            height: 60vh; /* Default height for mobile */
+        }
+        @media (min-width: 768px) { /* md breakpoint */
+            .canvas-container {
+                height: auto; /* Let flexbox control height on desktop */
+            }
+        }
     </style>
 </head>
 <body class="bg-gray-900 text-white flex flex-col h-screen">
 
     <!-- Header -->
-    <header class="bg-gray-800 shadow-md p-4 z-10">
+    <header class="bg-gray-800 shadow-md p-4 z-10 flex-shrink-0">
         <div class="container mx-auto flex justify-between items-center">
             <h1 class="text-2xl font-bold text-cyan-400">Collabra</h1>
             <div id="connection-status" class="text-sm font-medium bg-red-500 text-white py-1 px-3 rounded-full transition-colors">
@@ -73,13 +82,13 @@
         </div>
     </header>
 
-    <!-- Main Content -->
-    <main class="flex-grow flex flex-col md:flex-row container mx-auto p-4 gap-4 overflow-hidden">
+    <!-- Main Content: Made scrollable on mobile -->
+    <main class="flex-grow flex flex-col md:flex-row container mx-auto p-4 gap-4 overflow-y-auto">
 
         <!-- Left Side: Canvas and Controls -->
         <div class="flex flex-col w-full md:w-2/3 gap-4">
             <!-- Controls Section -->
-            <div class="bg-gray-800 p-4 rounded-lg shadow-lg space-y-4">
+            <div class="bg-gray-800 p-4 rounded-lg shadow-lg space-y-4 flex-shrink-0">
                 <!-- Connection Controls -->
                 <div>
                     <h2 class="text-lg font-semibold mb-3">Connection</h2>
@@ -120,13 +129,13 @@
             </div>
             
             <!-- Drawing Canvas -->
-            <div class="bg-white rounded-lg shadow-lg flex-grow relative">
+            <div class="bg-white rounded-lg shadow-lg flex-grow relative canvas-container">
                 <canvas id="drawing-canvas"></canvas>
             </div>
         </div>
 
         <!-- Right Side: Chat -->
-        <div class="flex flex-col w-full md:w-1/3 bg-gray-800 rounded-lg shadow-lg overflow-hidden">
+        <div class="flex flex-col w-full md:w-1/3 bg-gray-800 rounded-lg shadow-lg overflow-hidden flex-shrink-0" style="height: 80vh; max-height: 600px;">
             <h2 class="text-lg font-semibold p-4 border-b border-gray-700">Chat</h2>
             <div id="chat-messages" class="flex-grow p-4 overflow-y-auto flex flex-col-reverse">
                 <div class="text-center text-gray-500 text-sm my-2">Welcome! Copy your ID to send to a friend, or enter their ID to connect.</div>
@@ -217,23 +226,28 @@
         alertCloseBtn.addEventListener('click', () => customAlert.classList.add('hidden'));
 
         // --- FIREBASE INITIALIZATION ---
-        let db;
-        try {
-            const app = initializeApp(firebaseConfig);
-            db = getFirestore(app);
-            const auth = getAuth(app);
-            await signInAnonymously(auth);
-        } catch (error) {
-            console.error("Firebase initialization failed:", error);
-            if (error.code === 'auth/configuration-not-found') {
-                 showAlert("Firebase Config Error: Anonymous Sign-In is not enabled. Please go to your Firebase Console -> Authentication -> Sign-in method and enable 'Anonymous' sign-in.");
-            } else if (error.code === 'auth/api-key-not-valid') {
-                 showAlert("Firebase Error: The API key is not valid. Please ensure the 'firebaseConfig' object is correct.");
+        const initializeFirebase = async () => {
+            try {
+                console.log("Initializing Firebase...");
+                const app = initializeApp(firebaseConfig);
+                const db = getFirestore(app);
+                const auth = getAuth(app);
+                console.log("Firebase Initialized. Signing in anonymously...");
+                await signInAnonymously(auth);
+                console.log("Signed in Anonymously.");
+                return db;
+            } catch (error) {
+                console.error("Firebase initialization failed:", error);
+                if (error.code === 'auth/configuration-not-found') {
+                    showAlert("Firebase Config Error: Anonymous Sign-In is not enabled. Please go to your Firebase Console -> Authentication -> Sign-in method and enable 'Anonymous' sign-in.");
+                } else if (error.code === 'auth/api-key-not-valid') {
+                    showAlert("Firebase Error: The API key is not valid. Please ensure the 'firebaseConfig' object is correct.");
+                } else {
+                    showAlert("Could not connect to the service. Please check the console for errors.");
+                }
+                return null;
             }
-            else {
-                 showAlert("Could not connect to the service. Please check the console for errors.");
-            }
-        }
+        };
 
         const generateFriendlyId = () => {
             const adjectives = ['purple', 'green', 'blue', 'red', 'happy', 'silly', 'clever', 'brave', 'fast', 'bright'];
@@ -293,7 +307,6 @@
             ctx.lineJoin = 'round';
         };
 
-        // ** CORRECTED COORDINATE CALCULATION **
         const getEventCoords = (e) => {
             const rect = canvas.getBoundingClientRect();
             const event = e.touches ? e.touches[0] : e;
@@ -349,12 +362,13 @@
         }
 
         // --- PEERJS LOGIC ---
-        const initializePeer = async () => {
+        const initializePeer = async (db) => {
             if (!db) {
                 myIdInput.value = 'Service Failed';
                 return;
             }
-            myIdInput.placeholder = 'Connecting...';
+            myIdInput.placeholder = 'Generating ID...';
+            console.log("Generating Unique Peer ID...");
             let isIdUnique = false;
             while (!isIdUnique) {
                 peerId = generateFriendlyId();
@@ -364,6 +378,7 @@
                     if (!docSnap.exists()) {
                         await setDoc(peerDocRef, { createdAt: new Date() });
                         isIdUnique = true;
+                        console.log(`Unique ID Found: ${peerId}`);
                     }
                 } catch (err) {
                     console.error("Error checking/setting peer ID in Firestore:", err);
@@ -374,13 +389,13 @@
             }
 
             try {
+                console.log("Initializing PeerJS connection...");
+                // ** FIX: Simplified PeerJS config and added ping to keep connection alive **
                 peer = new Peer(peerId, {
-                    host: 'peerjs.com',
-                    path: '/peerjs',
-                    secure: true,
-                    port: 443
+                    pingInterval: 5000 
                 });
                 peer.on('open', (id) => {
+                    console.log(`PeerJS Open. Your ID is ${id}`);
                     myIdInput.value = id;
                     myIdInput.placeholder = '';
                     copyIdBtn.disabled = false;
@@ -391,7 +406,12 @@
                 });
                 peer.on('error', (err) => {
                     console.error("PeerJS error:", err);
-                    showAlert(`A PeerJS error occurred: ${err.type}. This can happen from network issues or an invalid ID. Please refresh and try again.`);
+                    // ** FIX: Improved error message for lost connection **
+                    if (err.type === 'peer-unavailable') {
+                         showAlert(`Could not connect to peer. Make sure the ID is correct and the user is online.`);
+                    } else {
+                         showAlert(`A PeerJS error occurred: ${err.type}. Please refresh and try again.`);
+                    }
                     myIdInput.value = 'Connection Failed';
                 });
             } catch (error) {
@@ -402,6 +422,7 @@
         };
 
         const setupConnection = (conn) => {
+            console.log(`Incoming connection from ${conn.peer}`);
             connection = conn;
             updateConnectionStatus('Connected');
             addChatMessage(`Connected to ${conn.peer}!`, 'System', 'system');
@@ -418,13 +439,14 @@
             });
 
             conn.on('close', () => {
+                console.log(`Connection from ${conn.peer} closed.`);
                 updateConnectionStatus('Connection closed');
                 addChatMessage('Friend has disconnected.', 'System', 'system');
                 connection = null;
             });
         };
 
-        const connectToPeer = async () => {
+        const connectToPeer = async (db) => {
             if (!db) return;
             const idToConnect = friendIdInput.value.trim();
             if (!idToConnect) {
@@ -435,6 +457,7 @@
                 showAlert("You can't connect to yourself!");
                 return;
             }
+            console.log(`Attempting to connect to ${idToConnect}`);
             const peerDocRef = doc(db, "peers", idToConnect);
             const peerDoc = await getDoc(peerDocRef);
             if (!peerDoc.exists()) {
@@ -451,22 +474,28 @@
             }
         };
 
-        // --- EVENT LISTENERS ---
-        window.addEventListener('load', () => {
+        // --- MAIN APP INITIALIZATION ---
+        const main = async () => {
             resizeCanvas();
-            initializePeer();
-        });
+            const db = await initializeFirebase();
+            if (db) {
+                await initializePeer(db);
+                connectBtn.addEventListener('click', () => connectToPeer(db));
+                window.addEventListener('beforeunload', async () => {
+                    if (peerId && db) {
+                        await deleteDoc(doc(db, "peers", peerId));
+                    }
+                    if (peer && !peer.destroyed) {
+                        peer.destroy();
+                    }
+                });
+            }
+        };
+
+        // --- EVENT LISTENERS ---
+        window.addEventListener('load', main);
         window.addEventListener('resize', resizeCanvas);
         
-        window.addEventListener('beforeunload', async () => {
-            if (peerId && db) {
-                await deleteDoc(doc(db, "peers", peerId));
-            }
-            if (peer && !peer.destroyed) {
-                peer.destroy();
-            }
-        });
-
         // Drawing listeners
         canvas.addEventListener('mousedown', startDrawing);
         canvas.addEventListener('mouseup', stopDrawing);
@@ -514,7 +543,6 @@
             copyIdBtn.textContent = 'Copied!';
             setTimeout(() => { copyIdBtn.textContent = 'Copy'; }, 2000);
         });
-        connectBtn.addEventListener('click', connectToPeer);
 
         // Chat listeners
         sendChatBtn.addEventListener('click', () => {
