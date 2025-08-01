@@ -293,17 +293,13 @@
             ctx.lineJoin = 'round';
         };
 
+        // ** CORRECTED COORDINATE CALCULATION **
         const getEventCoords = (e) => {
             const rect = canvas.getBoundingClientRect();
-            if (e.touches && e.touches.length > 0) {
-                return {
-                    x: e.touches[0].clientX - rect.left,
-                    y: e.touches[0].clientY - rect.top,
-                };
-            }
+            const event = e.touches ? e.touches[0] : e;
             return {
-                x: e.clientX - rect.left,
-                y: e.clientY - rect.top,
+                x: event.clientX - rect.left,
+                y: event.clientY - rect.top,
             };
         };
 
@@ -358,7 +354,7 @@
                 myIdInput.value = 'Service Failed';
                 return;
             }
-            myIdInput.placeholder = 'Connecting...'; // ** FIX: Set placeholder text **
+            myIdInput.placeholder = 'Connecting...';
             let isIdUnique = false;
             while (!isIdUnique) {
                 peerId = generateFriendlyId();
@@ -372,7 +368,7 @@
                 } catch (err) {
                     console.error("Error checking/setting peer ID in Firestore:", err);
                     showAlert("Could not verify a unique ID. Please check your connection and reload.");
-                    myIdInput.value = 'Connection Failed'; // ** FIX: Show error in input **
+                    myIdInput.value = 'Connection Failed';
                     return;
                 }
             }
@@ -386,8 +382,8 @@
                 });
                 peer.on('open', (id) => {
                     myIdInput.value = id;
-                    myIdInput.placeholder = ''; // Clear placeholder on success
-                    copyIdBtn.disabled = false; // ** FIX: Enable copy button **
+                    myIdInput.placeholder = '';
+                    copyIdBtn.disabled = false;
                     updateConnectionStatus('Waiting for connection...');
                 });
                 peer.on('connection', (conn) => {
@@ -396,12 +392,12 @@
                 peer.on('error', (err) => {
                     console.error("PeerJS error:", err);
                     showAlert(`A PeerJS error occurred: ${err.type}. This can happen from network issues or an invalid ID. Please refresh and try again.`);
-                    myIdInput.value = 'Connection Failed'; // ** FIX: Show error in input **
+                    myIdInput.value = 'Connection Failed';
                 });
             } catch (error) {
                 console.error("Error initializing peer:", error);
                 showAlert("Could not initialize connection service.");
-                myIdInput.value = 'Connection Failed'; // ** FIX: Show error in input **
+                myIdInput.value = 'Connection Failed';
             }
         };
 
