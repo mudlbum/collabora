@@ -54,6 +54,11 @@
             background-color: #4fd1c5; /* teal-400 */
             color: #1a202c; /* gray-900 */
         }
+        /* Style for disabled buttons */
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
     </style>
 </head>
 <body class="bg-gray-900 text-white flex flex-col h-screen">
@@ -80,10 +85,10 @@
                     <h2 class="text-lg font-semibold mb-3">Connection</h2>
                     <div class="flex flex-col sm:flex-row gap-3 items-center">
                         <div class="flex-grow w-full">
-                            <label for="my-id" class="text-sm font-medium text-gray-400">Your Unique ID (Read-Only)</label>
+                            <label for="my-id" class="text-sm font-medium text-gray-400">Your Unique ID (Auto-Generated)</label>
                             <div class="flex items-center bg-gray-700 rounded-md mt-1">
-                                <input type="text" id="my-id" class="w-full bg-transparent p-2 border-none focus:ring-0" readonly>
-                                <button id="copy-id-btn" class="bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-2 px-4 rounded-r-md transition-colors">Copy</button>
+                                <input type="text" id="my-id" class="w-full bg-transparent p-2 border-none focus:ring-0" placeholder="Connecting..." readonly>
+                                <button id="copy-id-btn" class="bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-2 px-4 rounded-r-md transition-colors" disabled>Copy</button>
                             </div>
                         </div>
                         <div class="text-gray-400 font-bold hidden sm:block">OR</div>
@@ -288,7 +293,6 @@
             ctx.lineJoin = 'round';
         };
 
-        // ** FIX: Unified function to get coordinates for both mouse and touch events **
         const getEventCoords = (e) => {
             const rect = canvas.getBoundingClientRect();
             if (e.touches && e.touches.length > 0) {
@@ -350,7 +354,11 @@
 
         // --- PEERJS LOGIC ---
         const initializePeer = async () => {
-            if (!db) return;
+            if (!db) {
+                myIdInput.value = 'Service Failed';
+                return;
+            }
+            myIdInput.placeholder = 'Connecting...'; // ** FIX: Set placeholder text **
             let isIdUnique = false;
             while (!isIdUnique) {
                 peerId = generateFriendlyId();
@@ -364,6 +372,7 @@
                 } catch (err) {
                     console.error("Error checking/setting peer ID in Firestore:", err);
                     showAlert("Could not verify a unique ID. Please check your connection and reload.");
+                    myIdInput.value = 'Connection Failed'; // ** FIX: Show error in input **
                     return;
                 }
             }
@@ -377,6 +386,8 @@
                 });
                 peer.on('open', (id) => {
                     myIdInput.value = id;
+                    myIdInput.placeholder = ''; // Clear placeholder on success
+                    copyIdBtn.disabled = false; // ** FIX: Enable copy button **
                     updateConnectionStatus('Waiting for connection...');
                 });
                 peer.on('connection', (conn) => {
@@ -385,10 +396,12 @@
                 peer.on('error', (err) => {
                     console.error("PeerJS error:", err);
                     showAlert(`A PeerJS error occurred: ${err.type}. This can happen from network issues or an invalid ID. Please refresh and try again.`);
+                    myIdInput.value = 'Connection Failed'; // ** FIX: Show error in input **
                 });
             } catch (error) {
                 console.error("Error initializing peer:", error);
                 showAlert("Could not initialize connection service.");
+                myIdInput.value = 'Connection Failed'; // ** FIX: Show error in input **
             }
         };
 
