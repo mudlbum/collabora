@@ -107,7 +107,7 @@
                         </div>
                     </div>
                      <div class="mt-2">
-                        <label for="share-link" class="text-sm font-medium text-gray-400">Or Share a Link</label>
+                        <label for="share-link" class="text-sm font-medium text-gray-400">Or Share a Link (Auto-Connects)</label>
                         <div class="flex items-center bg-gray-700 rounded-md mt-1">
                             <input type="text" id="share-link" class="w-full bg-transparent p-2 border-none focus:ring-0" placeholder="Generating link..." readonly>
                             <button id="copy-link-btn" class="bg-purple-500 hover:bg-purple-600 text-white font-bold py-2 px-4 rounded-r-md transition-colors" disabled>Copy Link</button>
@@ -225,7 +225,7 @@
         let drawing = false;
         let lastX = 0;
         let lastY = 0;
-        let peerId = null;
+        let myPeerId = null;
         let currentColor = '#000000';
         let currentBrushSize = 5;
         let isErasing = false;
@@ -237,6 +237,16 @@
             customAlert.classList.remove('hidden');
         };
         alertCloseBtn.addEventListener('click', () => customAlert.classList.add('hidden'));
+        
+        // ** FIX: Restored the missing function **
+        const generateFriendlyId = () => {
+            const adjectives = ['purple', 'green', 'blue', 'red', 'happy', 'silly', 'clever', 'brave', 'fast', 'bright'];
+            const nouns = ['cat', 'dog', 'fox', 'lion', 'bird', 'fish', 'tree', 'star', 'moon', 'sun'];
+            const randomAdj = adjectives[Math.floor(Math.random() * adjectives.length)];
+            const randomNoun = nouns[Math.floor(Math.random() * nouns.length)];
+            const randomNum = Math.floor(Math.random() * 100);
+            return `${randomAdj}-${randomNoun}-${randomNum}`;
+        };
 
         // --- FIREBASE INITIALIZATION ---
         const initializeFirebase = async () => {
@@ -251,15 +261,6 @@
                 showAlert("Could not connect to the service. Please check your Firebase settings.");
                 return null;
             }
-        };
-
-        const generateFriendlyId = () => {
-            const adjectives = ['purple', 'green', 'blue', 'red', 'happy', 'silly', 'clever', 'brave', 'fast', 'bright'];
-            const nouns = ['cat', 'dog', 'fox', 'lion', 'bird', 'fish', 'tree', 'star', 'moon', 'sun'];
-            const randomAdj = adjectives[Math.floor(Math.random() * adjectives.length)];
-            const randomNoun = nouns[Math.floor(Math.random() * nouns.length)];
-            const randomNum = Math.floor(Math.random() * 100);
-            return `${randomAdj}-${randomNoun}-${randomNum}`;
         };
 
         const addChatMessage = (message, sender, type = 'user') => {
@@ -386,17 +387,17 @@
         };
 
         // --- PEERJS LOGIC ---
-        const initializePeer = async (db) => {
+        const initializePeer = async (db, id) => {
             if (!db) {
                 myIdInput.value = 'Service Failed';
                 return null;
             }
             
-            peerId = generateFriendlyId();
-            console.log("Initializing Peer with ID:", peerId);
+            myPeerId = id || generateFriendlyId();
+            console.log("Initializing Peer with ID:", myPeerId);
 
             return new Promise((resolve) => {
-                peer = new Peer(peerId, { pingInterval: 5000 });
+                peer = new Peer(myPeerId, { pingInterval: 5000 });
                 peer.on('open', (id) => {
                     console.log(`PeerJS Open. Your ID is ${id}`);
                     myIdInput.value = id;
@@ -480,7 +481,7 @@
             });
         };
 
-        const connectToPeer = (idToConnect) => {
+        const connectToPeer = async (db, idToConnect) => {
              if (!peer || peer.disconnected) {
                 showAlert("Not connected to the service. Please refresh.");
                 return;
@@ -489,10 +490,18 @@
                 showAlert("Please enter a friend's ID.");
                 return;
             }
-            if (idToConnect === peerId) {
-                showAlert("You can't connect to yourself!");
+            if (idToConnect === myPeerId) {
+                // This can happen if you click your own link. Do nothing.
                 return;
             }
+
+            const peerDocRef = doc(db, "peers", idToConnect);
+            const peerDoc = await getDoc(peerDocRef);
+            if (!peerDoc.exists()) {
+                showAlert("This ID does not exist or has expired. Please get a new link from your friend.");
+                return;
+            }
+
             console.log(`Attempting to connect to ${idToConnect}`);
             try {
                 const conn = peer.connect(idToConnect, { reliable: true });
@@ -509,16 +518,18 @@
             const db = await initializeFirebase();
             if (!db) return;
 
-            const localPeer = await initializePeer(db);
             const friendIdFromUrl = window.location.hash.substring(1);
+            const localPeer = await initializePeer(db, generateFriendlyId());
 
             if (friendIdFromUrl && localPeer) {
-                console.log(`Found friend ID in URL: ${friendIdFromUrl}.`);
+                console.log(`Found friend ID in URL: ${friendIdFromUrl}. Auto-connecting.`);
                 friendIdInput.value = friendIdFromUrl;
-                connectToPeer(friendIdFromUrl);
+                setTimeout(() => {
+                    connectToPeer(db, friendIdFromUrl);
+                }, 500);
             }
 
-            connectBtn.addEventListener('click', () => connectToPeer(friendIdInput.value.trim()));
+            connectBtn.addEventListener('click', () => connectToPeer(db, friendIdInput.value.trim()));
         };
 
         // --- EVENT LISTENERS ---
