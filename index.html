@@ -481,6 +481,12 @@
                     connection = null;
                 }
             });
+
+            // ** FIX: Added error handler for the specific connection attempt **
+            conn.on('error', (err) => {
+                console.error(`Connection error with ${conn.peer}:`, err);
+                showAlert(`Could not connect to ${conn.peer}. Please ensure the ID is correct and they are online.`);
+            });
         };
 
         const connectToPeer = async (db, idToConnect) => {
@@ -527,12 +533,11 @@
                 friendIdInput.value = friendIdFromUrl;
                 setTimeout(() => {
                     connectToPeer(db, friendIdFromUrl);
-                }, 1000); // Increased timeout for reliability
+                }, 1000); 
             }
 
             connectBtn.addEventListener('click', () => connectToPeer(db, friendIdInput.value.trim()));
             
-            // ** FIX: Added event listener for Enter key **
             friendIdInput.addEventListener('keydown', (e) => {
                 if (e.key === 'Enter') {
                     connectToPeer(db, friendIdInput.value.trim());
