@@ -142,6 +142,17 @@
             <button id="alert-close-btn" class="modal-close-btn">Close</button>
         </div>
     </div>
+    
+    <!-- ** NEW ** Modal for Clear Canvas confirmation -->
+    <div id="clear-confirm-modal" class="modal-backdrop hidden">
+        <div class="modal-content">
+            <p id="clear-confirm-message">Are you sure you want to clear the canvas for everyone?</p>
+            <div class="mt-6 flex justify-center gap-4">
+                 <button id="clear-cancel-btn" class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-6 rounded-md transition-colors">Cancel</button>
+                 <button id="clear-confirm-btn" class="bg-red-600 hover:bg-red-500 text-white font-bold py-2 px-6 rounded-md transition-colors">Clear</button>
+            </div>
+        </div>
+    </div>
 
     <!-- Firebase SDK -->
     <script type="module">
@@ -173,12 +184,15 @@
         const customAlert = document.getElementById('custom-alert');
         const alertMessage = document.getElementById('alert-message');
         const alertCloseBtn = document.getElementById('alert-close-btn');
-        // New tool selectors
         const colorPicker = document.getElementById('color-picker');
         const brushSizeSlider = document.getElementById('brush-size');
         const brushSizeLabel = document.getElementById('brush-size-label');
         const eraserBtn = document.getElementById('eraser-btn');
         const clearBtn = document.getElementById('clear-btn');
+        // New modal selectors
+        const clearConfirmModal = document.getElementById('clear-confirm-modal');
+        const clearConfirmBtn = document.getElementById('clear-confirm-btn');
+        const clearCancelBtn = document.getElementById('clear-cancel-btn');
 
         // --- STATE VARIABLES ---
         let peer;
@@ -187,7 +201,6 @@
         let lastX = 0;
         let lastY = 0;
         let peerId = null;
-        // New tool state variables
         let currentColor = '#000000';
         let currentBrushSize = 5;
         let isErasing = false;
@@ -290,10 +303,8 @@
             const newX = e.offsetX;
             const newY = e.offsetY;
             
-            // Draw locally
             drawLine(lastX, lastY, newX, newY, currentColor, currentBrushSize, isErasing);
 
-            // Send drawing data to peer
             if (connection) {
                 connection.send({
                     type: 'draw',
@@ -313,7 +324,7 @@
             ctx.moveTo(x0, y0);
             ctx.lineTo(x1, y1);
             ctx.stroke();
-            ctx.globalCompositeOperation = 'source-over'; // Reset composite operation
+            ctx.globalCompositeOperation = 'source-over';
         };
 
         const clearCanvas = () => {
@@ -341,7 +352,13 @@
             }
 
             try {
-                peer = new Peer(peerId, {});
+                // ** FIX: Explicitly set secure connection for PeerJS **
+                peer = new Peer(peerId, {
+                    host: 'peerjs.com',
+                    path: '/peerjs',
+                    secure: true,
+                    port: 443
+                });
                 peer.on('open', (id) => {
                     myIdInput.value = id;
                     updateConnectionStatus('Waiting for connection...');
@@ -351,7 +368,7 @@
                 });
                 peer.on('error', (err) => {
                     console.error("PeerJS error:", err);
-                    showAlert(`An error occurred: ${err.message}.`);
+                    showAlert(`A PeerJS error occurred: ${err.type}. This can happen from network issues or an invalid ID. Please refresh and try again.`);
                 });
             } catch (error) {
                 console.error("Error initializing peer:", error);
@@ -465,13 +482,19 @@
             eraserBtn.classList.toggle('active', isErasing);
         });
 
+        // ** FIX: Use custom modal for clear confirmation **
         clearBtn.addEventListener('click', () => {
-            if(confirm('Are you sure you want to clear the canvas for everyone?')) {
-                clearCanvas();
-                if (connection) {
-                    connection.send({ type: 'clear' });
-                }
+            clearConfirmModal.classList.remove('hidden');
+        });
+        clearCancelBtn.addEventListener('click', () => {
+            clearConfirmModal.classList.add('hidden');
+        });
+        clearConfirmBtn.addEventListener('click', () => {
+            clearCanvas();
+            if (connection) {
+                connection.send({ type: 'clear' });
             }
+            clearConfirmModal.classList.add('hidden');
         });
 
         // Connection listeners
