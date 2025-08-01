@@ -283,6 +283,8 @@
                 friendIdInput.disabled = true;
             } else if (status.includes('Waiting')) {
                  connectionStatusDiv.className = 'text-sm font-medium bg-yellow-500 text-white py-1 px-3 rounded-full transition-colors';
+            } else if (status === 'Reconnecting...') {
+                 connectionStatusDiv.className = 'text-sm font-medium bg-orange-500 text-white py-1 px-3 rounded-full transition-colors';
             }
             else {
                  connectionStatusDiv.className = 'text-sm font-medium bg-red-500 text-white py-1 px-3 rounded-full transition-colors';
@@ -335,7 +337,7 @@
             
             drawLine(lastX, lastY, coords.x, coords.y, currentColor, currentBrushSize, isErasing);
 
-            if (connection) {
+            if (connection && connection.open) {
                 connection.send({
                     type: 'draw',
                     x0: lastX / canvas.width, y0: lastY / canvas.height,
@@ -390,7 +392,6 @@
 
             try {
                 console.log("Initializing PeerJS connection...");
-                // ** FIX: Simplified PeerJS config and added ping to keep connection alive **
                 peer = new Peer(peerId, {
                     pingInterval: 5000 
                 });
@@ -404,15 +405,22 @@
                 peer.on('connection', (conn) => {
                     setupConnection(conn);
                 });
+                peer.on('disconnected', () => {
+                    console.log('Connection to PeerJS server lost. Attempting to reconnect...');
+                    updateConnectionStatus('Reconnecting...');
+                    peer.reconnect();
+                });
                 peer.on('error', (err) => {
                     console.error("PeerJS error:", err);
-                    // ** FIX: Improved error message for lost connection **
-                    if (err.type === 'peer-unavailable') {
+                    if (err.type === 'network') {
+                         showAlert(`Connection to the server was lost. The app is trying to reconnect. If the problem persists, please refresh the page.`);
+                         updateConnectionStatus('Reconnecting...');
+                         if (peer && !peer.destroyed) peer.reconnect();
+                    } else if (err.type === 'peer-unavailable') {
                          showAlert(`Could not connect to peer. Make sure the ID is correct and the user is online.`);
                     } else {
                          showAlert(`A PeerJS error occurred: ${err.type}. Please refresh and try again.`);
                     }
-                    myIdInput.value = 'Connection Failed';
                 });
             } catch (error) {
                 console.error("Error initializing peer:", error);
@@ -421,13 +429,23 @@
             }
         };
 
+        // ** CORRECTED CONNECTION SETUP LOGIC **
         const setupConnection = (conn) => {
-            console.log(`Incoming connection from ${conn.peer}`);
-            connection = conn;
-            updateConnectionStatus('Connected');
-            addChatMessage(`Connected to ${conn.peer}!`, 'System', 'system');
+            console.log(`Connection event fired for peer ${conn.peer}. Setting up listeners.`);
+            
+            conn.on('open', () => {
+                console.log(`Data connection to ${conn.peer} is now open.`);
+                if (connection) {
+                    console.log(`Closing existing connection to ${connection.peer}`);
+                    connection.close();
+                }
+                connection = conn;
+                updateConnectionStatus('Connected');
+                addChatMessage(`Connected to ${conn.peer}! You can now draw and chat.`, 'System', 'system');
+            });
 
             conn.on('data', (data) => {
+                console.log(`Data received from ${conn.peer}:`, data.type);
                 if (data.type === 'chat') {
                     addChatMessage(data.message, 'Friend');
                 } else if (data.type === 'draw') {
@@ -440,14 +458,20 @@
 
             conn.on('close', () => {
                 console.log(`Connection from ${conn.peer} closed.`);
-                updateConnectionStatus('Connection closed');
-                addChatMessage('Friend has disconnected.', 'System', 'system');
-                connection = null;
+                // Only update status if this was the active connection
+                if (connection && connection.peer === conn.peer) {
+                    updateConnectionStatus('Connection closed');
+                    addChatMessage('Friend has disconnected.', 'System', 'system');
+                    connection = null;
+                }
             });
         };
 
         const connectToPeer = async (db) => {
-            if (!db) return;
+            if (!db || !peer || peer.disconnected) {
+                showAlert("Not connected to the service. Please refresh.");
+                return;
+            }
             const idToConnect = friendIdInput.value.trim();
             if (!idToConnect) {
                 showAlert("Please enter a friend's ID.");
@@ -464,7 +488,7 @@
                 showAlert("This ID does not exist. Please check the ID and try again.");
                 return;
             }
-            if (connection) connection.close();
+            
             try {
                 const conn = peer.connect(idToConnect, { reliable: true });
                 setupConnection(conn);
@@ -530,7 +554,7 @@
         });
         clearConfirmBtn.addEventListener('click', () => {
             clearCanvas();
-            if (connection) {
+            if (connection && connection.open) {
                 connection.send({ type: 'clear' });
             }
             clearConfirmModal.classList.add('hidden');
@@ -549,7 +573,7 @@
             const message = chatInput.value.trim();
             if (message) {
                 addChatMessage(message, 'You');
-                if (connection) {
+                if (connection && connection.open) {
                     connection.send({ type: 'chat', message });
                 }
                 chatInput.value = '';
