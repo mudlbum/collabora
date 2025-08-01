@@ -80,7 +80,7 @@
                     <h2 class="text-lg font-semibold mb-3">Connection</h2>
                     <div class="flex flex-col sm:flex-row gap-3 items-center">
                         <div class="flex-grow w-full">
-                            <label for="my-id" class="text-sm font-medium text-gray-400">Your Unique ID</label>
+                            <label for="my-id" class="text-sm font-medium text-gray-400">Your Unique ID (Read-Only)</label>
                             <div class="flex items-center bg-gray-700 rounded-md mt-1">
                                 <input type="text" id="my-id" class="w-full bg-transparent p-2 border-none focus:ring-0" readonly>
                                 <button id="copy-id-btn" class="bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-2 px-4 rounded-r-md transition-colors">Copy</button>
@@ -143,7 +143,7 @@
         </div>
     </div>
     
-    <!-- ** NEW ** Modal for Clear Canvas confirmation -->
+    <!-- Modal for Clear Canvas confirmation -->
     <div id="clear-confirm-modal" class="modal-backdrop hidden">
         <div class="modal-content">
             <p id="clear-confirm-message">Are you sure you want to clear the canvas for everyone?</p>
@@ -189,7 +189,6 @@
         const brushSizeLabel = document.getElementById('brush-size-label');
         const eraserBtn = document.getElementById('eraser-btn');
         const clearBtn = document.getElementById('clear-btn');
-        // New modal selectors
         const clearConfirmModal = document.getElementById('clear-confirm-modal');
         const clearConfirmBtn = document.getElementById('clear-confirm-btn');
         const clearCancelBtn = document.getElementById('clear-cancel-btn');
@@ -289,31 +288,49 @@
             ctx.lineJoin = 'round';
         };
 
-        const startDrawing = (e) => {
-            drawing = true;
-            [lastX, lastY] = [e.offsetX, e.offsetY];
+        // ** FIX: Unified function to get coordinates for both mouse and touch events **
+        const getEventCoords = (e) => {
+            const rect = canvas.getBoundingClientRect();
+            if (e.touches && e.touches.length > 0) {
+                return {
+                    x: e.touches[0].clientX - rect.left,
+                    y: e.touches[0].clientY - rect.top,
+                };
+            }
+            return {
+                x: e.clientX - rect.left,
+                y: e.clientY - rect.top,
+            };
         };
 
-        const stopDrawing = () => {
+        const startDrawing = (e) => {
+            e.preventDefault();
+            drawing = true;
+            const coords = getEventCoords(e);
+            [lastX, lastY] = [coords.x, coords.y];
+        };
+
+        const stopDrawing = (e) => {
+            e.preventDefault();
             drawing = false;
         };
 
         const draw = (e) => {
             if (!drawing) return;
-            const newX = e.offsetX;
-            const newY = e.offsetY;
+            e.preventDefault();
+            const coords = getEventCoords(e);
             
-            drawLine(lastX, lastY, newX, newY, currentColor, currentBrushSize, isErasing);
+            drawLine(lastX, lastY, coords.x, coords.y, currentColor, currentBrushSize, isErasing);
 
             if (connection) {
                 connection.send({
                     type: 'draw',
                     x0: lastX / canvas.width, y0: lastY / canvas.height,
-                    x1: newX / canvas.width, y1: newY / canvas.height,
+                    x1: coords.x / canvas.width, y1: coords.y / canvas.height,
                     color: currentColor, size: currentBrushSize, erase: isErasing
                 });
             }
-            [lastX, lastY] = [newX, newY];
+            [lastX, lastY] = [coords.x, coords.y];
         };
         
         const drawLine = (x0, y0, x1, y1, color, size, erase) => {
@@ -345,14 +362,13 @@
                         isIdUnique = true;
                     }
                 } catch (err) {
-                    console.error("Error checking/setting peer ID:", err);
+                    console.error("Error checking/setting peer ID in Firestore:", err);
                     showAlert("Could not verify a unique ID. Please check your connection and reload.");
                     return;
                 }
             }
 
             try {
-                // ** FIX: Explicitly set secure connection for PeerJS **
                 peer = new Peer(peerId, {
                     host: 'peerjs.com',
                     path: '/peerjs',
@@ -447,23 +463,9 @@
         canvas.addEventListener('mouseup', stopDrawing);
         canvas.addEventListener('mouseout', stopDrawing);
         canvas.addEventListener('mousemove', draw);
-        canvas.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            const touch = e.touches[0];
-            const mouseEvent = new MouseEvent('mousedown', { clientX: touch.clientX, clientY: touch.clientY });
-            canvas.dispatchEvent(mouseEvent);
-        }, false);
-        canvas.addEventListener('touchend', (e) => {
-            e.preventDefault();
-            const mouseEvent = new MouseEvent('mouseup', {});
-            canvas.dispatchEvent(mouseEvent);
-        }, false);
-        canvas.addEventListener('touchmove', (e) => {
-            e.preventDefault();
-            const touch = e.touches[0];
-            const mouseEvent = new MouseEvent('mousemove', { clientX: touch.clientX, clientY: touch.clientY });
-            canvas.dispatchEvent(mouseEvent);
-        }, false);
+        canvas.addEventListener('touchstart', startDrawing, false);
+        canvas.addEventListener('touchend', stopDrawing, false);
+        canvas.addEventListener('touchmove', draw, false);
 
         // Tool listeners
         colorPicker.addEventListener('change', (e) => {
@@ -482,7 +484,6 @@
             eraserBtn.classList.toggle('active', isErasing);
         });
 
-        // ** FIX: Use custom modal for clear confirmation **
         clearBtn.addEventListener('click', () => {
             clearConfirmModal.classList.remove('hidden');
         });
