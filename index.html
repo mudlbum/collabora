@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Collabra - P2P Drawing & Chat</title>
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- PeerJS for P2P communication -->
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* Custom styles to complement Tailwind */
+        body {
+            font-family: 'Inter', sans-serif;
+            overflow: hidden; /* Prevent scrolling */
+        }
+        #drawing-canvas {
+            cursor: crosshair;
+            touch-action: none;
+        }
+        #chat-messages::-webkit-scrollbar {
+            width: 6px;
+        }
+        #chat-messages::-webkit-scrollbar-track {
+            background: #2d3748;
+        }
+        #chat-messages::-webkit-scrollbar-thumb {
+            background: #4a5568;
+            border-radius: 3px;
+        }
+        #chat-messages::-webkit-scrollbar-thumb:hover {
+            background: #718096;
+        }
+        .modal-backdrop {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(0,0,0,0.6);
+            display: flex; justify-content: center; align-items: center; z-index: 100;
+        }
+        .modal-content {
+            background-color: #2d3748; padding: 2rem; border-radius: 0.5rem;
+            text-align: center; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            max-width: 90%; width: 500px;
+        }
+        .modal-close-btn {
+            margin-top: 1.5rem; background-color: #4a5568; padding: 0.5rem 1rem;
+            border-radius: 0.375rem; cursor: pointer;
+        }
+        /* Style for active tool button */
+        .tool-btn.active {
+            background-color: #4fd1c5; /* teal-400 */
+            color: #1a202c; /* gray-900 */
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white flex flex-col h-screen">
+
+    <!-- Header -->
+    <header class="bg-gray-800 shadow-md p-4 z-10">
+        <div class="container mx-auto flex justify-between items-center">
+            <h1 class="text-2xl font-bold text-cyan-400">Collabra</h1>
+            <div id="connection-status" class="text-sm font-medium bg-red-500 text-white py-1 px-3 rounded-full transition-colors">
+                Status: Not Connected
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-grow flex flex-col md:flex-row container mx-auto p-4 gap-4 overflow-hidden">
+
+        <!-- Left Side: Canvas and Controls -->
+        <div class="flex flex-col w-full md:w-2/3 gap-4">
+            <!-- Controls Section -->
+            <div class="bg-gray-800 p-4 rounded-lg shadow-lg space-y-4">
+                <!-- Connection Controls -->
+                <div>
+                    <h2 class="text-lg font-semibold mb-3">Connection</h2>
+                    <div class="flex flex-col sm:flex-row gap-3 items-center">
+                        <div class="flex-grow w-full">
+                            <label for="my-id" class="text-sm font-medium text-gray-400">Your Unique ID</label>
+                            <div class="flex items-center bg-gray-700 rounded-md mt-1">
+                                <input type="text" id="my-id" class="w-full bg-transparent p-2 border-none focus:ring-0" readonly>
+                                <button id="copy-id-btn" class="bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-2 px-4 rounded-r-md transition-colors">Copy</button>
+                            </div>
+                        </div>
+                        <div class="text-gray-400 font-bold hidden sm:block">OR</div>
+                        <div class="flex-grow w-full">
+                             <label for="friend-id" class="text-sm font-medium text-gray-400">Friend's ID</label>
+                            <div class="flex items-center mt-1">
+                                <input type="text" id="friend-id" placeholder="Enter friend's ID" class="w-full bg-gray-700 p-2 rounded-l-md border border-gray-600 focus:ring-cyan-500 focus:border-cyan-500">
+                                <button id="connect-btn" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-r-md transition-colors">Connect</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Drawing Tools -->
+                <div>
+                    <h2 class="text-lg font-semibold mb-3">Tools</h2>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 items-center">
+                        <div class="flex items-center gap-2">
+                            <label for="color-picker" class="text-sm font-medium text-gray-400">Color:</label>
+                            <input type="color" id="color-picker" value="#000000" class="w-10 h-10 rounded-md cursor-pointer">
+                        </div>
+                        <div class="flex flex-col gap-2 col-span-2 md:col-span-1">
+                            <label for="brush-size" class="text-sm font-medium text-gray-400">Size: <span id="brush-size-label">5</span>px</label>
+                            <input type="range" id="brush-size" min="1" max="50" value="5" class="w-full">
+                        </div>
+                        <button id="eraser-btn" class="tool-btn bg-gray-600 hover:bg-gray-500 p-2 rounded-md transition-colors">Eraser</button>
+                        <button id="clear-btn" class="bg-red-600 hover:bg-red-500 p-2 rounded-md transition-colors">Clear Canvas</button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Drawing Canvas -->
+            <div class="bg-white rounded-lg shadow-lg flex-grow relative">
+                <canvas id="drawing-canvas"></canvas>
+            </div>
+        </div>
+
+        <!-- Right Side: Chat -->
+        <div class="flex flex-col w-full md:w-1/3 bg-gray-800 rounded-lg shadow-lg overflow-hidden">
+            <h2 class="text-lg font-semibold p-4 border-b border-gray-700">Chat</h2>
+            <div id="chat-messages" class="flex-grow p-4 overflow-y-auto flex flex-col-reverse">
+                <div class="text-center text-gray-500 text-sm my-2">Welcome! Copy your ID to send to a friend, or enter their ID to connect.</div>
+            </div>
+            <div class="p-4 border-t border-gray-700">
+                <div class="flex gap-2">
+                    <input type="text" id="chat-input" placeholder="Type a message..." class="flex-grow bg-gray-700 p-2 rounded-md border border-gray-600 focus:ring-cyan-500 focus:border-cyan-500">
+                    <button id="send-chat-btn" class="bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-2 px-4 rounded-md transition-colors">Send</button>
+                </div>
+            </div>
+        </div>
+    </main>
+    
+    <!-- Modal for custom alerts -->
+    <div id="custom-alert" class="modal-backdrop hidden">
+        <div class="modal-content">
+            <p id="alert-message"></p>
+            <button id="alert-close-btn" class="modal-close-btn">Close</button>
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getFirestore, doc, getDoc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+
+        // --- CONFIGURATION ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyCTe4pOBiiwDoUYNEytXS1G1XONdEx_sFY",
+            authDomain: "collabra-f6bf8.firebaseapp.com",
+            projectId: "collabra-f6bf8",
+            storageBucket: "collabra-f6bf8.appspot.com",
+            messagingSenderId: "636699317913",
+            appId: "1:636699317913:web:f1c695f1e8f483a5410a08"
+        };
+
+        // --- ELEMENT SELECTORS ---
+        const myIdInput = document.getElementById('my-id');
+        const copyIdBtn = document.getElementById('copy-id-btn');
+        const friendIdInput = document.getElementById('friend-id');
+        const connectBtn = document.getElementById('connect-btn');
+        const connectionStatusDiv = document.getElementById('connection-status');
+        const canvas = document.getElementById('drawing-canvas');
+        const chatMessagesDiv = document.getElementById('chat-messages');
+        const chatInput = document.getElementById('chat-input');
+        const sendChatBtn = document.getElementById('send-chat-btn');
+        const ctx = canvas.getContext('2d');
+        const customAlert = document.getElementById('custom-alert');
+        const alertMessage = document.getElementById('alert-message');
+        const alertCloseBtn = document.getElementById('alert-close-btn');
+        // New tool selectors
+        const colorPicker = document.getElementById('color-picker');
+        const brushSizeSlider = document.getElementById('brush-size');
+        const brushSizeLabel = document.getElementById('brush-size-label');
+        const eraserBtn = document.getElementById('eraser-btn');
+        const clearBtn = document.getElementById('clear-btn');
+
+        // --- STATE VARIABLES ---
+        let peer;
+        let connection;
+        let drawing = false;
+        let lastX = 0;
+        let lastY = 0;
+        let peerId = null;
+        // New tool state variables
+        let currentColor = '#000000';
+        let currentBrushSize = 5;
+        let isErasing = false;
+
+        // --- UTILITY FUNCTIONS ---
+        const showAlert = (message) => {
+            alertMessage.textContent = message;
+            customAlert.classList.remove('hidden');
+        };
+        alertCloseBtn.addEventListener('click', () => customAlert.classList.add('hidden'));
+
+        // --- FIREBASE INITIALIZATION ---
+        let db;
+        try {
+            const app = initializeApp(firebaseConfig);
+            db = getFirestore(app);
+            const auth = getAuth(app);
+            await signInAnonymously(auth);
+        } catch (error) {
+            console.error("Firebase initialization failed:", error);
+            if (error.code === 'auth/configuration-not-found') {
+                 showAlert("Firebase Config Error: Anonymous Sign-In is not enabled. Please go to your Firebase Console -> Authentication -> Sign-in method and enable 'Anonymous' sign-in.");
+            } else if (error.code === 'auth/api-key-not-valid') {
+                 showAlert("Firebase Error: The API key is not valid. Please ensure the 'firebaseConfig' object is correct.");
+            }
+            else {
+                 showAlert("Could not connect to the service. Please check the console for errors.");
+            }
+        }
+
+        const generateFriendlyId = () => {
+            const adjectives = ['purple', 'green', 'blue', 'red', 'happy', 'silly', 'clever', 'brave', 'fast', 'bright'];
+            const nouns = ['cat', 'dog', 'fox', 'lion', 'bird', 'fish', 'tree', 'star', 'moon', 'sun'];
+            const randomAdj = adjectives[Math.floor(Math.random() * adjectives.length)];
+            const randomNoun = nouns[Math.floor(Math.random() * nouns.length)];
+            const randomNum = Math.floor(Math.random() * 100);
+            return `${randomAdj}-${randomNoun}-${randomNum}`;
+        };
+
+        const addChatMessage = (message, sender, type = 'user') => {
+            const msgElement = document.createElement('div');
+            let senderClass = '';
+            let alignment = '';
+            if (type === 'system') {
+                senderClass = 'text-gray-400 italic';
+                alignment = 'text-center';
+                msgElement.innerHTML = message;
+            } else {
+                senderClass = sender === 'You' ? 'text-cyan-400' : 'text-green-400';
+                alignment = sender === 'You' ? 'text-right' : 'text-left';
+                msgElement.innerHTML = `<span class="font-bold ${senderClass}">${sender}:</span> ${message}`;
+            }
+            msgElement.className = `mb-2 ${alignment}`;
+            chatMessagesDiv.insertBefore(msgElement, chatMessagesDiv.firstChild);
+        };
+        
+        const updateConnectionStatus = (status) => {
+            connectionStatusDiv.textContent = `Status: ${status}`;
+            if (status === 'Connected') {
+                connectionStatusDiv.className = 'text-sm font-medium bg-green-500 text-white py-1 px-3 rounded-full transition-colors';
+                connectBtn.disabled = true;
+                friendIdInput.disabled = true;
+            } else if (status.includes('Waiting')) {
+                 connectionStatusDiv.className = 'text-sm font-medium bg-yellow-500 text-white py-1 px-3 rounded-full transition-colors';
+            }
+            else {
+                 connectionStatusDiv.className = 'text-sm font-medium bg-red-500 text-white py-1 px-3 rounded-full transition-colors';
+                 connectBtn.disabled = false;
+                 friendIdInput.disabled = false;
+            }
+        };
+
+        // --- CANVAS SETUP AND DRAWING LOGIC ---
+        const resizeCanvas = () => {
+            const parent = canvas.parentElement;
+            let imageData = null;
+            if (canvas.width > 0 && canvas.height > 0) {
+                imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            }
+            canvas.width = parent.clientWidth;
+            canvas.height = parent.clientHeight;
+            if (imageData) {
+                ctx.putImageData(imageData, 0, 0);
+            }
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+        };
+
+        const startDrawing = (e) => {
+            drawing = true;
+            [lastX, lastY] = [e.offsetX, e.offsetY];
+        };
+
+        const stopDrawing = () => {
+            drawing = false;
+        };
+
+        const draw = (e) => {
+            if (!drawing) return;
+            const newX = e.offsetX;
+            const newY = e.offsetY;
+            
+            // Draw locally
+            drawLine(lastX, lastY, newX, newY, currentColor, currentBrushSize, isErasing);
+
+            // Send drawing data to peer
+            if (connection) {
+                connection.send({
+                    type: 'draw',
+                    x0: lastX / canvas.width, y0: lastY / canvas.height,
+                    x1: newX / canvas.width, y1: newY / canvas.height,
+                    color: currentColor, size: currentBrushSize, erase: isErasing
+                });
+            }
+            [lastX, lastY] = [newX, newY];
+        };
+        
+        const drawLine = (x0, y0, x1, y1, color, size, erase) => {
+            ctx.beginPath();
+            ctx.globalCompositeOperation = erase ? 'destination-out' : 'source-over';
+            ctx.strokeStyle = color;
+            ctx.lineWidth = size;
+            ctx.moveTo(x0, y0);
+            ctx.lineTo(x1, y1);
+            ctx.stroke();
+            ctx.globalCompositeOperation = 'source-over'; // Reset composite operation
+        };
+
+        const clearCanvas = () => {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+
+        // --- PEERJS LOGIC ---
+        const initializePeer = async () => {
+            if (!db) return;
+            let isIdUnique = false;
+            while (!isIdUnique) {
+                peerId = generateFriendlyId();
+                const peerDocRef = doc(db, "peers", peerId);
+                try {
+                    const docSnap = await getDoc(peerDocRef);
+                    if (!docSnap.exists()) {
+                        await setDoc(peerDocRef, { createdAt: new Date() });
+                        isIdUnique = true;
+                    }
+                } catch (err) {
+                    console.error("Error checking/setting peer ID:", err);
+                    showAlert("Could not verify a unique ID. Please check your connection and reload.");
+                    return;
+                }
+            }
+
+            try {
+                peer = new Peer(peerId, {});
+                peer.on('open', (id) => {
+                    myIdInput.value = id;
+                    updateConnectionStatus('Waiting for connection...');
+                });
+                peer.on('connection', (conn) => {
+                    setupConnection(conn);
+                });
+                peer.on('error', (err) => {
+                    console.error("PeerJS error:", err);
+                    showAlert(`An error occurred: ${err.message}.`);
+                });
+            } catch (error) {
+                console.error("Error initializing peer:", error);
+                showAlert("Could not initialize connection service.");
+            }
+        };
+
+        const setupConnection = (conn) => {
+            connection = conn;
+            updateConnectionStatus('Connected');
+            addChatMessage(`Connected to ${conn.peer}!`, 'System', 'system');
+
+            conn.on('data', (data) => {
+                if (data.type === 'chat') {
+                    addChatMessage(data.message, 'Friend');
+                } else if (data.type === 'draw') {
+                    const { x0, y0, x1, y1, color, size, erase } = data;
+                    drawLine(x0 * canvas.width, y0 * canvas.height, x1 * canvas.width, y1 * canvas.height, color, size, erase);
+                } else if (data.type === 'clear') {
+                    clearCanvas();
+                }
+            });
+
+            conn.on('close', () => {
+                updateConnectionStatus('Connection closed');
+                addChatMessage('Friend has disconnected.', 'System', 'system');
+                connection = null;
+            });
+        };
+
+        const connectToPeer = async () => {
+            if (!db) return;
+            const idToConnect = friendIdInput.value.trim();
+            if (!idToConnect) {
+                showAlert("Please enter a friend's ID.");
+                return;
+            }
+            if (idToConnect === peerId) {
+                showAlert("You can't connect to yourself!");
+                return;
+            }
+            const peerDocRef = doc(db, "peers", idToConnect);
+            const peerDoc = await getDoc(peerDocRef);
+            if (!peerDoc.exists()) {
+                showAlert("This ID does not exist. Please check the ID and try again.");
+                return;
+            }
+            if (connection) connection.close();
+            try {
+                const conn = peer.connect(idToConnect, { reliable: true });
+                setupConnection(conn);
+            } catch (error) {
+                console.error("Connection failed:", error);
+                showAlert("Failed to connect. Make sure the ID is correct and the user is online.");
+            }
+        };
+
+        // --- EVENT LISTENERS ---
+        window.addEventListener('load', () => {
+            resizeCanvas();
+            initializePeer();
+        });
+        window.addEventListener('resize', resizeCanvas);
+        
+        window.addEventListener('beforeunload', async () => {
+            if (peerId && db) {
+                await deleteDoc(doc(db, "peers", peerId));
+            }
+            if (peer && !peer.destroyed) {
+                peer.destroy();
+            }
+        });
+
+        // Drawing listeners
+        canvas.addEventListener('mousedown', startDrawing);
+        canvas.addEventListener('mouseup', stopDrawing);
+        canvas.addEventListener('mouseout', stopDrawing);
+        canvas.addEventListener('mousemove', draw);
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            const touch = e.touches[0];
+            const mouseEvent = new MouseEvent('mousedown', { clientX: touch.clientX, clientY: touch.clientY });
+            canvas.dispatchEvent(mouseEvent);
+        }, false);
+        canvas.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            const mouseEvent = new MouseEvent('mouseup', {});
+            canvas.dispatchEvent(mouseEvent);
+        }, false);
+        canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            const touch = e.touches[0];
+            const mouseEvent = new MouseEvent('mousemove', { clientX: touch.clientX, clientY: touch.clientY });
+            canvas.dispatchEvent(mouseEvent);
+        }, false);
+
+        // Tool listeners
+        colorPicker.addEventListener('change', (e) => {
+            currentColor = e.target.value;
+            isErasing = false;
+            eraserBtn.classList.remove('active');
+        });
+
+        brushSizeSlider.addEventListener('input', (e) => {
+            currentBrushSize = e.target.value;
+            brushSizeLabel.textContent = currentBrushSize;
+        });
+
+        eraserBtn.addEventListener('click', () => {
+            isErasing = !isErasing;
+            eraserBtn.classList.toggle('active', isErasing);
+        });
+
+        clearBtn.addEventListener('click', () => {
+            if(confirm('Are you sure you want to clear the canvas for everyone?')) {
+                clearCanvas();
+                if (connection) {
+                    connection.send({ type: 'clear' });
+                }
+            }
+        });
+
+        // Connection listeners
+        copyIdBtn.addEventListener('click', () => {
+            myIdInput.select();
+            document.execCommand('copy');
+            copyIdBtn.textContent = 'Copied!';
+            setTimeout(() => { copyIdBtn.textContent = 'Copy'; }, 2000);
+        });
+        connectBtn.addEventListener('click', connectToPeer);
+
+        // Chat listeners
+        sendChatBtn.addEventListener('click', () => {
+            const message = chatInput.value.trim();
+            if (message) {
+                addChatMessage(message, 'You');
+                if (connection) {
+                    connection.send({ type: 'chat', message });
+                }
+                chatInput.value = '';
+            }
+        });
+        chatInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                sendChatBtn.click();
+            }
+        });
+
+    </script>
+</body>
+</html>
