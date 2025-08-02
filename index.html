@@ -88,11 +88,20 @@
                 <!-- Connection Controls -->
                 <div>
                     <h2 class="text-lg font-semibold mb-3">Connection</h2>
-                    <div class="mt-2">
-                        <label for="share-link" class="text-sm font-medium text-gray-400">Share this link to invite others</label>
-                        <div class="flex items-center bg-gray-700 rounded-md mt-1">
-                            <input type="text" id="share-link" class="w-full bg-transparent p-2 border-none focus:ring-0" placeholder="Generating link..." readonly>
-                            <button id="copy-link-btn" class="bg-purple-500 hover:bg-purple-600 text-white font-bold py-2 px-4 rounded-r-md transition-colors" disabled>Copy Link</button>
+                    <div class="flex flex-col sm:flex-row gap-3 items-center">
+                        <div class="flex-grow w-full">
+                            <label for="room-id" class="text-sm font-medium text-gray-400">Your Room ID</label>
+                            <div class="flex items-center bg-gray-700 rounded-md mt-1">
+                                <input type="text" id="room-id" class="w-full bg-transparent p-2 border-none focus:ring-0" placeholder="Generating room..." readonly>
+                                <button id="copy-id-btn" class="bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-2 px-4 rounded-r-md transition-colors" disabled>Copy ID</button>
+                            </div>
+                        </div>
+                        <div class="flex-grow w-full">
+                             <label for="friend-id" class="text-sm font-medium text-gray-400">Add Friend's ID to Room</label>
+                            <div class="flex items-center mt-1">
+                                <input type="text" id="friend-id" placeholder="Enter friend's ID" class="w-full bg-gray-700 p-2 rounded-l-md border border-gray-600 focus:ring-cyan-500 focus:border-cyan-500">
+                                <button id="add-btn" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-r-md transition-colors">Add</button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -129,7 +138,7 @@
                 </div>
             </div>
             <div id="chat-messages" class="flex-grow p-4 overflow-y-auto flex flex-col-reverse">
-                <div class="text-center text-gray-500 text-sm my-2">Welcome! Copy the link above to invite friends.</div>
+                <div class="text-center text-gray-500 text-sm my-2">Welcome! Create a room or join one using a friend's ID.</div>
             </div>
             <div class="p-4 border-t border-gray-700">
                 <div class="flex gap-2">
@@ -166,7 +175,7 @@
     <!-- Firebase SDK -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getFirestore, doc, getDoc, setDoc, deleteDoc, collection, onSnapshot, updateDoc, arrayUnion, arrayRemove } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, doc, getDoc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 
         // --- CONFIGURATION ---
@@ -180,8 +189,10 @@
         };
 
         // --- ELEMENT SELECTORS ---
-        const shareLinkInput = document.getElementById('share-link');
-        const copyLinkBtn = document.getElementById('copy-link-btn');
+        const roomIdInput = document.getElementById('room-id');
+        const copyIdBtn = document.getElementById('copy-id-btn');
+        const friendIdInput = document.getElementById('friend-id');
+        const addBtn = document.getElementById('add-btn');
         const connectionStatusDiv = document.getElementById('connection-status');
         const canvas = document.getElementById('drawing-canvas');
         const chatMessagesDiv = document.getElementById('chat-messages');
@@ -205,11 +216,11 @@
 
         // --- STATE VARIABLES ---
         let peer;
-        let connections = {}; // Store multiple connections
+        let connections = {};
         let drawing = false;
         let lastX = 0, lastY = 0;
         let myPeerId = null;
-        let roomId = null;
+        let isHost = false;
         let currentColor = '#000000', currentBrushSize = 5, isErasing = false;
         const fileChunks = {};
 
@@ -247,7 +258,6 @@
         const addChatMessage = (message, sender, type = 'user') => {
             const bubbleContainer = document.createElement('div');
             const isYou = sender === 'You';
-
             if (type === 'system') {
                 bubbleContainer.className = 'w-full flex justify-center mb-2';
                 bubbleContainer.innerHTML = `<div class="text-gray-400 italic text-sm">${message}</div>`;
@@ -273,7 +283,7 @@
             userListDiv.innerHTML = '';
             const selfBubble = document.createElement('div');
             selfBubble.className = 'bg-cyan-600 text-white text-sm font-semibold px-3 py-1 rounded-full';
-            selfBubble.textContent = myPeerId.split('-')[0];
+            selfBubble.textContent = myPeerId.split('-')[0] + ' (You)';
             userListDiv.appendChild(selfBubble);
 
             for(const peerId in connections) {
@@ -297,7 +307,6 @@
             const tempCtx = tempCanvas.getContext('2d');
             const oldWidth = canvas.width;
             const oldHeight = canvas.height;
-
             if (oldWidth > 0 && oldHeight > 0) {
                 tempCanvas.width = oldWidth;
                 tempCanvas.height = oldHeight;
@@ -329,11 +338,15 @@
             drawing = false;
         };
 
-        const broadcastToPeers = (data) => {
-            for(const peerId in connections) {
-                if(connections[peerId] && connections[peerId].open) {
-                    connections[peerId].send(data);
+        const broadcast = (data) => {
+            if (isHost) {
+                for(const peerId in connections) {
+                    if(connections[peerId] && connections[peerId].open) {
+                        connections[peerId].send(data);
+                    }
                 }
+            } else if (connections[roomId] && connections[roomId].open) {
+                connections[roomId].send(data);
             }
         };
 
@@ -342,7 +355,7 @@
             e.preventDefault();
             const coords = getEventCoords(e);
             drawLine(lastX, lastY, coords.x, coords.y, currentColor, currentBrushSize, isErasing);
-            broadcastToPeers({ type: 'draw', x0: lastX / canvas.width, y0: lastY / canvas.height, x1: coords.x / canvas.width, y1: coords.y / canvas.height, color: currentColor, size: currentBrushSize, erase: isErasing });
+            broadcast({ type: 'draw', sender: myPeerId, x0: lastX / canvas.width, y0: lastY / canvas.height, x1: coords.x / canvas.width, y1: coords.y / canvas.height, color: currentColor, size: currentBrushSize, erase: isErasing });
             [lastX, lastY] = [coords.x, coords.y];
         };
         
@@ -371,13 +384,13 @@
             const fileId = `${Date.now()}-${file.name}`;
             const metadata = { type: 'file-meta', name: file.name, size: file.size, fileId: fileId, mimeType: file.type, sender: myPeerId };
             addChatMessage(`Sending ${file.name}... <progress id="progress-${fileId}" value="0" max="${file.size}" class="w-full"></progress>`, 'You');
-            broadcastToPeers(metadata);
+            broadcast(metadata);
             const chunkSize = 16384;
             const reader = new FileReader();
             let offset = 0;
             reader.onload = (e) => {
                 if (!e.target.error) {
-                    broadcastToPeers({ type: 'file-chunk', fileId: fileId, data: e.target.result });
+                    broadcast({ type: 'file-chunk', fileId: fileId, data: e.target.result });
                     offset += e.target.result.byteLength;
                     const progress = document.getElementById(`progress-${fileId}`);
                     if(progress) progress.value = offset;
@@ -391,7 +404,7 @@
         };
 
         // --- PEERJS LOGIC ---
-        const initializePeer = async (db, id) => {
+        const initializePeer = async (id) => {
             myPeerId = id;
             return new Promise((resolve) => {
                 peer = new Peer(myPeerId, { pingInterval: 5000 });
@@ -415,12 +428,26 @@
             conn.on('open', () => {
                 console.log(`Data connection to ${conn.peer} is now open.`);
                 connections[conn.peer] = conn;
+                if(isHost) {
+                    broadcast({ type: 'user-list', users: [myPeerId, ...Object.keys(connections)] });
+                }
                 updateConnectionStatus('Connected');
                 addChatMessage(`${conn.peer.split('-')[0]} has joined the room.`, 'System', 'system');
                 updateUserList();
             });
 
             conn.on('data', (data) => {
+                if(isHost && data.sender !== myPeerId) {
+                    // Host relays data to all other clients
+                    for(const peerId in connections) {
+                        if(peerId !== data.sender) { // Don't send it back to the original sender
+                           if(connections[peerId] && connections[peerId].open) {
+                                connections[peerId].send(data);
+                           }
+                        }
+                    }
+                }
+
                 if (data.type === 'file-meta') {
                     fileChunks[data.fileId] = { chunks: [], name: data.name, size: data.size, mimeType: data.mimeType, receivedSize: 0, msgElement: addChatMessage(`Receiving ${data.name}... <progress id="progress-${data.fileId}" value="0" max="${data.size}" class="w-full"></progress>`, data.sender.split('-')[0]) };
                 } else if (data.type === 'file-chunk') {
@@ -462,6 +489,14 @@
                     drawLine(x0 * canvas.width, y0 * canvas.height, x1 * canvas.width, y1 * canvas.height, color, size, erase);
                 } else if (data.type === 'clear') {
                     clearCanvas();
+                } else if (data.type === 'user-list') {
+                    // For clients receiving user list from host
+                    data.users.forEach(userId => {
+                        if(userId !== myPeerId && !connections[userId]) {
+                            const conn = peer.connect(userId, { reliable: true });
+                            setupConnection(conn);
+                        }
+                    });
                 }
             });
 
@@ -469,7 +504,7 @@
                 console.log(`Connection from ${conn.peer} closed.`);
                 addChatMessage(`${conn.peer.split('-')[0]} has left the room.`, 'System', 'system');
                 delete connections[conn.peer];
-                if(Object.keys(connections).length === 0) updateConnectionStatus('Waiting for connection...');
+                if(Object.keys(connections).length === 0 && !isHost) updateConnectionStatus('Disconnected');
                 updateUserList();
             });
             
@@ -485,38 +520,45 @@
             const db = await initializeFirebase();
             if (!db) return;
 
-            roomId = window.location.hash.substring(1);
-            if (!roomId) {
-                roomId = generateFriendlyId('room-');
-                window.history.replaceState(null, '', `#${roomId}`);
+            const roomIdFromUrl = window.location.hash.substring(1);
+            if (roomIdFromUrl) {
+                // This user is joining a room
+                isHost = false;
+                myPeerId = generateFriendlyId();
+                await initializePeer(myPeerId);
+                roomIdInput.value = roomIdFromUrl;
+                
+                const roomDocRef = doc(db, "rooms", roomIdFromUrl);
+                const roomDoc = await getDoc(roomDocRef);
+                if(roomDoc.exists()) {
+                    const hostId = roomDoc.data().host;
+                    console.log(`Joining room. Host is ${hostId}`);
+                    const conn = peer.connect(hostId, { reliable: true });
+                    setupConnection(conn);
+                } else {
+                    showAlert("Room not found. Please check the link.");
+                }
+
+            } else {
+                // This user is creating a room
+                isHost = true;
+                myPeerId = generateFriendlyId('host-');
+                await initializePeer(myPeerId);
+                roomIdInput.value = myPeerId;
+                const url = new URL(window.location.href);
+                url.hash = myPeerId;
+                // shareLinkInput.value = url.href; // This was removed in the UI revert
+                copyIdBtn.disabled = false;
+                updateConnectionStatus('Waiting for connection...');
+                updateUserList();
+                const roomDocRef = doc(db, "rooms", myPeerId);
+                await setDoc(roomDocRef, { host: myPeerId });
             }
             
-            myPeerId = generateFriendlyId();
-            await initializePeer(db, myPeerId);
-            
-            const roomRef = doc(db, "rooms", roomId);
-            
-            // Listen for changes in the room
-            onSnapshot(roomRef, (doc) => {
-                if(doc.exists()) {
-                    const roomPeers = doc.data().peers || [];
-                    roomPeers.forEach(peerId => {
-                        if(peerId !== myPeerId && !connections[peerId]) {
-                            console.log(`Found new peer ${peerId}, connecting...`);
-                            const conn = peer.connect(peerId, { reliable: true });
-                            setupConnection(conn);
-                        }
-                    });
-                }
-            });
-
-            // Add self to the room
-            await setDoc(roomRef, { peers: arrayUnion(myPeerId) }, { merge: true });
-
-            updateUserList();
-            
             window.addEventListener('beforeunload', async () => {
-                await updateDoc(roomRef, { peers: arrayRemove(myPeerId) });
+                if (isHost) {
+                    await deleteDoc(doc(db, "rooms", myPeerId));
+                }
                 if (peer && !peer.destroyed) peer.destroy();
             });
         };
@@ -553,15 +595,23 @@
         clearCancelBtn.addEventListener('click', () => clearConfirmModal.classList.add('hidden'));
         clearConfirmBtn.addEventListener('click', () => {
             clearCanvas();
-            broadcastToPeers({ type: 'clear' });
+            broadcast({ type: 'clear', sender: myPeerId });
             clearConfirmModal.classList.add('hidden');
         });
 
-        copyLinkBtn.addEventListener('click', () => {
-            shareLinkInput.select();
+        copyIdBtn.addEventListener('click', () => {
+            roomIdInput.select();
             document.execCommand('copy');
-            copyLinkBtn.textContent = 'Copied!';
-            setTimeout(() => { copyLinkBtn.textContent = 'Copy Link'; }, 2000);
+            copyIdBtn.textContent = 'Copied!';
+            setTimeout(() => { copyIdBtn.textContent = 'Copy ID'; }, 2000);
+        });
+
+        addBtn.addEventListener('click', () => {
+            const idToAdd = friendIdInput.value.trim();
+            if(idToAdd) {
+                const conn = peer.connect(idToAdd, { reliable: true });
+                setupConnection(conn);
+            }
         });
 
         attachFileBtn.addEventListener('click', () => fileInput.click());
@@ -575,7 +625,7 @@
             const message = chatInput.value.trim();
             if (message) {
                 addChatMessage(message, 'You');
-                broadcastToPeers({ type: 'chat', message: message, sender: myPeerId });
+                broadcast({ type: 'chat', message: message, sender: myPeerId });
                 chatInput.value = '';
             }
         });
