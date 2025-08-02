@@ -204,7 +204,7 @@
         const chatMessagesDiv = document.getElementById('chat-messages');
         const chatInput = document.getElementById('chat-input');
         const sendChatBtn = document.getElementById('send-chat-btn');
-        const ctx = canvas.getContext('2d');
+        let ctx = canvas.getContext('2d'); // Use let to allow re-assignment
         const customAlert = document.getElementById('custom-alert');
         const alertMessage = document.getElementById('alert-message');
         const alertCloseBtn = document.getElementById('alert-close-btn');
@@ -288,6 +288,14 @@
         };
 
         // --- CANVAS LOGIC ---
+        // ** FIX: New function to apply styles to the canvas context **
+        const applyCanvasStyles = () => {
+            // Re-getting context with this attribute can improve performance
+            ctx = canvas.getContext('2d', { willReadFrequently: true });
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+        };
+
         const resizeCanvas = () => {
             const parent = canvas.parentElement;
             let imageData = null;
@@ -296,11 +304,12 @@
             }
             canvas.width = parent.clientWidth;
             canvas.height = parent.clientHeight;
+            
+            applyCanvasStyles(); // Apply styles to the new context
+
             if (imageData) {
                 ctx.putImageData(imageData, 0, 0);
             }
-            ctx.lineCap = 'round';
-            ctx.lineJoin = 'round';
         };
 
         const getEventCoords = (e) => {
@@ -343,7 +352,12 @@
             ctx.globalCompositeOperation = 'source-over';
         };
 
-        const clearCanvas = () => ctx.clearRect(0, 0, canvas.width, canvas.height);
+        // ** FIX: Use a more robust clearing method **
+        const clearCanvas = () => {
+            // This trick fully resets the canvas state, fixing the drawing bug
+            canvas.width = canvas.width;
+            applyCanvasStyles(); // Re-apply styles after reset
+        };
 
         // --- FILE TRANSFER LOGIC ---
         const sendFile = (file) => {
