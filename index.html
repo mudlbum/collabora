@@ -287,6 +287,24 @@
                 userListDiv.appendChild(peerBubble);
             }
         };
+        
+        // --- THEME LOGIC ---
+        const updateTheme = () => {
+            if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                // Dark mode
+                canvasBg.classList.remove('bg-white');
+                canvasBg.classList.add('bg-gray-900');
+                currentColor = '#FFFFFF';
+                colorPicker.value = '#FFFFFF';
+            } else {
+                // Light mode
+                canvasBg.classList.remove('bg-gray-900');
+                canvasBg.classList.add('bg-white');
+                currentColor = '#000000';
+                colorPicker.value = '#000000';
+            }
+        };
+
 
         // --- CANVAS LOGIC ---
         const applyCanvasStyles = () => {
@@ -543,6 +561,7 @@
         // --- MAIN APP INITIALIZATION ---
         const main = async () => {
             resizeCanvas();
+            updateTheme(); // Set initial theme
             const db = await initializeFirebase();
             if (!db) return;
 
@@ -587,6 +606,7 @@
         // --- EVENT LISTENERS ---
         window.addEventListener('load', main);
         window.addEventListener('resize', resizeCanvas);
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', updateTheme);
         
         canvas.addEventListener('mousedown', startDrawing);
         canvas.addEventListener('mouseup', stopDrawing);
