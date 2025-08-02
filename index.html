@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Collabra - P2P Group Drawing & Chat</title>
+    <title>Collabra - P2P Drawing & Chat</title>
     <!-- Tailwind CSS for styling -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- PeerJS for P2P communication -->
@@ -88,8 +88,24 @@
                 <!-- Connection Controls -->
                 <div>
                     <h2 class="text-lg font-semibold mb-3">Connection</h2>
+                    <div class="flex flex-col sm:flex-row gap-3 items-center">
+                        <div class="flex-grow w-full">
+                            <label for="my-id" class="text-sm font-medium text-gray-400">Your Unique ID</label>
+                            <div class="flex items-center bg-gray-700 rounded-md mt-1">
+                                <input type="text" id="my-id" class="w-full bg-transparent p-2 border-none focus:ring-0" placeholder="Connecting..." readonly>
+                                <button id="copy-id-btn" class="bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-2 px-4 rounded-r-md transition-colors" disabled>Copy ID</button>
+                            </div>
+                        </div>
+                        <div class="flex-grow w-full">
+                             <label for="friend-id" class="text-sm font-medium text-gray-400">Friend's ID</label>
+                            <div class="flex items-center mt-1">
+                                <input type="text" id="friend-id" placeholder="Enter friend's ID" class="w-full bg-gray-700 p-2 rounded-l-md border border-gray-600 focus:ring-cyan-500 focus:border-cyan-500">
+                                <button id="connect-btn" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-r-md transition-colors">Connect</button>
+                            </div>
+                        </div>
+                    </div>
                      <div class="mt-2">
-                        <label for="share-link" class="text-sm font-medium text-gray-400">Share this Room Link to Invite Others</label>
+                        <label for="share-link" class="text-sm font-medium text-gray-400">Or Share a Link</label>
                         <div class="flex items-center bg-gray-700 rounded-md mt-1">
                             <input type="text" id="share-link" class="w-full bg-transparent p-2 border-none focus:ring-0" placeholder="Generating link..." readonly>
                             <button id="copy-link-btn" class="bg-purple-500 hover:bg-purple-600 text-white font-bold py-2 px-4 rounded-r-md transition-colors" disabled>Copy Link</button>
@@ -123,13 +139,13 @@
         <!-- Right Side: Chat -->
         <div class="flex flex-col w-full md:w-1/3 bg-gray-800 rounded-lg shadow-lg overflow-hidden flex-shrink-0" style="height: 80vh; max-height: 600px;">
             <div class="p-4 border-b border-gray-700">
-                <h2 class="text-lg font-semibold mb-2">Users in Room</h2>
+                <h2 class="text-lg font-semibold mb-2">Users</h2>
                 <div id="user-list" class="flex flex-wrap gap-2">
                     <!-- User bubbles will be injected here -->
                 </div>
             </div>
             <div id="chat-messages" class="flex-grow p-4 overflow-y-auto flex flex-col-reverse">
-                <div class="text-center text-gray-500 text-sm my-2">Welcome! Copy the link above to invite friends.</div>
+                <div class="text-center text-gray-500 text-sm my-2">Welcome! Copy your ID or Link to invite a friend.</div>
             </div>
             <div class="p-4 border-t border-gray-700">
                 <div class="flex gap-2">
@@ -166,7 +182,7 @@
     <!-- Firebase SDK -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getFirestore, doc, getDoc, setDoc, deleteDoc, collection, onSnapshot, updateDoc, arrayUnion, arrayRemove } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, doc, getDoc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 
         // --- CONFIGURATION ---
@@ -180,6 +196,10 @@
         };
 
         // --- ELEMENT SELECTORS ---
+        const myIdInput = document.getElementById('my-id');
+        const copyIdBtn = document.getElementById('copy-id-btn');
+        const friendIdInput = document.getElementById('friend-id');
+        const connectBtn = document.getElementById('connect-btn');
         const shareLinkInput = document.getElementById('share-link');
         const copyLinkBtn = document.getElementById('copy-link-btn');
         const connectionStatusDiv = document.getElementById('connection-status');
@@ -205,12 +225,10 @@
 
         // --- STATE VARIABLES ---
         let peer;
-        let connections = {};
+        let connection;
         let drawing = false;
         let lastX = 0, lastY = 0;
         let myPeerId = null;
-        let roomId = null;
-        let isHost = false;
         let currentColor = '#000000', currentBrushSize = 5, isErasing = false;
         const fileChunks = {};
 
@@ -221,13 +239,13 @@
         };
         alertCloseBtn.addEventListener('click', () => customAlert.classList.add('hidden'));
         
-        const generateFriendlyId = (prefix = '') => {
+        const generateFriendlyId = () => {
             const adjectives = ['purple', 'green', 'blue', 'red', 'happy', 'silly', 'clever', 'brave', 'fast', 'bright'];
             const nouns = ['cat', 'dog', 'fox', 'lion', 'bird', 'fish', 'tree', 'star', 'moon', 'sun'];
             const randomAdj = adjectives[Math.floor(Math.random() * adjectives.length)];
             const randomNoun = nouns[Math.floor(Math.random() * nouns.length)];
             const randomNum = Math.floor(Math.random() * 100);
-            return `${prefix}${randomAdj}-${randomNoun}-${randomNum}`;
+            return `${randomAdj}-${randomNoun}-${randomNum}`;
         };
 
         // --- FIREBASE INITIALIZATION ---
@@ -276,10 +294,10 @@
             selfBubble.textContent = myPeerId.split('-')[0] + ' (You)';
             userListDiv.appendChild(selfBubble);
 
-            for(const peerId in connections) {
+            if (connection && connection.open) {
                 const peerBubble = document.createElement('div');
                 peerBubble.className = 'bg-gray-600 text-white text-sm font-semibold px-3 py-1 rounded-full';
-                peerBubble.textContent = peerId.split('-')[0];
+                peerBubble.textContent = connection.peer.split('-')[0];
                 userListDiv.appendChild(peerBubble);
             }
         };
@@ -328,20 +346,14 @@
             drawing = false;
         };
 
-        const broadcast = (data) => {
-            Object.values(connections).forEach(conn => {
-                if (conn && conn.open) {
-                    conn.send(data);
-                }
-            });
-        };
-
         const draw = (e) => {
             if (!drawing) return;
             e.preventDefault();
             const coords = getEventCoords(e);
             drawLine(lastX, lastY, coords.x, coords.y, currentColor, currentBrushSize, isErasing);
-            broadcast({ type: 'draw', sender: myPeerId, x0: lastX / canvas.width, y0: lastY / canvas.height, x1: coords.x / canvas.width, y1: coords.y / canvas.height, color: currentColor, size: currentBrushSize, erase: isErasing });
+            if (connection && connection.open) {
+                connection.send({ type: 'draw', sender: myPeerId, x0: lastX / canvas.width, y0: lastY / canvas.height, x1: coords.x / canvas.width, y1: coords.y / canvas.height, color: currentColor, size: currentBrushSize, erase: isErasing });
+            }
             [lastX, lastY] = [coords.x, coords.y];
         };
         
@@ -363,20 +375,20 @@
 
         // --- FILE TRANSFER LOGIC ---
         const sendFile = (file) => {
-            if (Object.keys(connections).length === 0) {
-                showAlert("You must be connected to other users to send a file.");
+            if (!connection || !connection.open) {
+                showAlert("You must be connected to send a file.");
                 return;
             }
             const fileId = `${Date.now()}-${file.name}`;
             const metadata = { type: 'file-meta', name: file.name, size: file.size, fileId: fileId, mimeType: file.type, sender: myPeerId };
             addChatMessage(`Sending ${file.name}... <progress id="progress-${fileId}" value="0" max="${file.size}" class="w-full"></progress>`, 'You');
-            broadcast(metadata);
+            connection.send(metadata);
             const chunkSize = 16384;
             const reader = new FileReader();
             let offset = 0;
             reader.onload = (e) => {
                 if (!e.target.error) {
-                    broadcast({ type: 'file-chunk', fileId: fileId, data: e.target.result });
+                    connection.send({ type: 'file-chunk', fileId: fileId, data: e.target.result });
                     offset += e.target.result.byteLength;
                     const progress = document.getElementById(`progress-${fileId}`);
                     if(progress) progress.value = offset;
@@ -390,8 +402,11 @@
         };
 
         // --- PEERJS LOGIC ---
-        const initializePeer = async (id) => {
+        const initializePeer = async (db, id) => {
             myPeerId = id;
+            await setDoc(doc(db, "peers", myPeerId), { createdAt: new Date() });
+            console.log("Registered Peer ID in Firestore:", myPeerId);
+
             return new Promise((resolve) => {
                 peer = new Peer(myPeerId, { pingInterval: 5000 });
                 peer.on('open', (id) => {
@@ -413,18 +428,10 @@
         const setupConnection = (conn) => {
             conn.on('open', () => {
                 console.log(`Data connection to ${conn.peer} is now open.`);
-                connections[conn.peer] = conn;
-                
-                if (isHost) {
-                    // Tell the new peer about everyone else
-                    const peerList = Object.keys(connections);
-                    conn.send({ type: 'peer-list', peers: peerList });
-                    // Tell everyone else about the new peer
-                    broadcast({ type: 'new-peer', peerId: conn.peer });
-                }
-
+                if (connection) connection.close();
+                connection = conn;
                 updateConnectionStatus('Connected');
-                addChatMessage(`${conn.peer.split('-')[0]} has joined the room.`, 'System', 'system');
+                addChatMessage(`${conn.peer.split('-')[0]} has joined.`, 'System', 'system');
                 updateUserList();
             });
 
@@ -465,28 +472,21 @@
                     }
                 } else if (data.type === 'chat') {
                     addChatMessage(data.message, data.sender.split('-')[0]);
-                    if (isHost) broadcast(data); // Host relays chat
                 } else if (data.type === 'draw') {
                     const { x0, y0, x1, y1, color, size, erase } = data;
                     drawLine(x0 * canvas.width, y0 * canvas.height, x1 * canvas.width, y1 * canvas.height, color, size, erase);
-                    if (isHost) broadcast(data); // Host relays drawing
                 } else if (data.type === 'clear') {
                     clearCanvas();
-                    if (isHost) broadcast(data); // Host relays clear
-                } else if (data.type === 'peer-list') {
-                    // New client receives list of peers from host
-                    data.peers.forEach(peerId => connectToPeer(peerId));
-                } else if (data.type === 'new-peer') {
-                    // Existing client connects to a newcomer
-                    connectToPeer(data.peerId);
                 }
             });
 
             conn.on('close', () => {
                 console.log(`Connection from ${conn.peer} closed.`);
-                addChatMessage(`${conn.peer.split('-')[0]} has left the room.`, 'System', 'system');
-                delete connections[conn.peer];
-                if(Object.keys(connections).length === 0) updateConnectionStatus('Waiting for connection...');
+                addChatMessage(`${conn.peer.split('-')[0]} has left.`, 'System', 'system');
+                if (connection && connection.peer === conn.peer) {
+                    connection = null;
+                    updateConnectionStatus('Disconnected');
+                }
                 updateUserList();
             });
             
@@ -496,10 +496,22 @@
             });
         };
 
-        const connectToPeer = (idToConnect) => {
-             if (!peer || peer.disconnected || !idToConnect || idToConnect === myPeerId || connections[idToConnect]) {
+        const connectToPeer = async (db, idToConnect) => {
+             if (!peer || peer.disconnected) {
+                showAlert("Not connected to the service. Please refresh.");
                 return;
             }
+            if (!idToConnect || idToConnect === myPeerId || connection) {
+                return;
+            }
+
+            const peerDocRef = doc(db, "peers", idToConnect);
+            const peerDoc = await getDoc(peerDocRef);
+            if (!peerDoc.exists()) {
+                showAlert("This ID does not exist or has expired. Please get a new link from your friend.");
+                return;
+            }
+
             console.log(`Attempting to connect to ${idToConnect}`);
             try {
                 const conn = peer.connect(idToConnect, { reliable: true });
@@ -516,37 +528,40 @@
             const db = await initializeFirebase();
             if (!db) return;
 
-            roomId = window.location.hash.substring(1);
-
-            if (roomId) {
-                // This user is JOINING a room
-                isHost = false;
-                myPeerId = generateFriendlyId();
-            } else {
-                // This user is CREATING a room
-                isHost = true;
-                myPeerId = generateFriendlyId('host-');
-                roomId = myPeerId;
-                window.history.replaceState(null, '', `#${roomId}`);
-            }
+            const localPeer = await initializePeer(db, generateFriendlyId());
             
-            await initializePeer(myPeerId);
-            
+            myIdInput.value = myPeerId;
             const url = new URL(window.location.href);
-            url.hash = roomId;
+            url.hash = myPeerId;
             shareLinkInput.value = url.href;
+            copyIdBtn.disabled = false;
             copyLinkBtn.disabled = false;
-            updateUserList();
             updateConnectionStatus('Waiting for connection...');
+            updateUserList();
 
-            if (!isHost) {
+            const friendIdFromUrl = window.location.hash.substring(1);
+            if (friendIdFromUrl && friendIdFromUrl !== myPeerId) {
+                console.log(`Found friend ID in URL: ${friendIdFromUrl}. Auto-connecting.`);
+                friendIdInput.value = friendIdFromUrl;
                 setTimeout(() => {
-                    connectToPeer(roomId);
+                    connectToPeer(db, friendIdFromUrl);
                 }, 1000); 
             }
+
+            connectBtn.addEventListener('click', () => connectToPeer(db, friendIdInput.value.trim()));
+            friendIdInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    connectToPeer(db, friendIdInput.value.trim());
+                }
+            });
             
             window.addEventListener('beforeunload', async () => {
-                if (peer && !peer.destroyed) peer.destroy();
+                if (myPeerId && db) {
+                   await deleteDoc(doc(db, "peers", myPeerId));
+                }
+                if (peer && !peer.destroyed) {
+                    peer.destroy();
+                }
             });
         };
 
@@ -582,8 +597,15 @@
         clearCancelBtn.addEventListener('click', () => clearConfirmModal.classList.add('hidden'));
         clearConfirmBtn.addEventListener('click', () => {
             clearCanvas();
-            broadcast({ type: 'clear', sender: myPeerId });
+            if(connection && connection.open) connection.send({ type: 'clear', sender: myPeerId });
             clearConfirmModal.classList.add('hidden');
+        });
+
+        copyIdBtn.addEventListener('click', () => {
+            myIdInput.select();
+            document.execCommand('copy');
+            copyIdBtn.textContent = 'Copied!';
+            setTimeout(() => { copyIdBtn.textContent = 'Copy ID'; }, 2000);
         });
         
         copyLinkBtn.addEventListener('click', () => {
@@ -604,7 +626,7 @@
             const message = chatInput.value.trim();
             if (message) {
                 addChatMessage(message, 'You');
-                broadcast({ type: 'chat', message: message, sender: myPeerId });
+                if(connection && connection.open) connection.send({ type: 'chat', message: message, sender: myPeerId });
                 chatInput.value = '';
             }
         });
