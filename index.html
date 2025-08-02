@@ -20,7 +20,6 @@
         #drawing-canvas {
             cursor: crosshair;
             touch-action: none;
-            /* ** FIX: Ensure canvas fills its container ** */
             display: block;
             width: 100%;
             height: 100%;
@@ -62,7 +61,6 @@
             opacity: 0.5;
             cursor: not-allowed;
         }
-        /* ** FIX for Aspect Ratio ** */
         .canvas-container {
             width: 100%;
             aspect-ratio: 16 / 9; /* Enforce a 16:9 aspect ratio */
@@ -264,19 +262,32 @@
             }
         };
 
+        // ** FIX: Redesigned chat message function for bubbles **
         const addChatMessage = (message, sender, type = 'user') => {
-            const msgElement = document.createElement('div');
-            const alignment = sender === 'You' ? 'text-right' : 'text-left';
-            msgElement.className = `mb-2 ${alignment}`;
+            const bubbleContainer = document.createElement('div');
+            const isYou = sender === 'You';
 
             if (type === 'system') {
-                msgElement.innerHTML = `<span class="text-gray-400 italic">${message}</span>`;
+                bubbleContainer.className = 'w-full flex justify-center mb-2';
+                bubbleContainer.innerHTML = `<div class="text-gray-400 italic text-sm">${message}</div>`;
             } else {
-                 const senderClass = sender === 'You' ? 'text-cyan-400' : 'text-green-400';
-                 msgElement.innerHTML = `<div class="font-bold ${senderClass}">${sender}:</div><div>${message}</div>`;
+                const alignment = isYou ? 'justify-end' : 'justify-start';
+                bubbleContainer.className = `w-full flex ${alignment} mb-2`;
+
+                const bubbleColor = isYou ? 'bg-cyan-600' : 'bg-gray-600';
+                const senderName = `<div class="font-bold text-sm mb-1">${sender}</div>`;
+                const messageContent = `<div class="message-content break-words">${message}</div>`;
+
+                bubbleContainer.innerHTML = `
+                    <div class="max-w-xs md:max-w-md p-3 rounded-lg ${bubbleColor}">
+                        ${senderName}
+                        ${messageContent}
+                    </div>
+                `;
             }
-            chatMessagesDiv.insertBefore(msgElement, chatMessagesDiv.firstChild);
-            return msgElement;
+
+            chatMessagesDiv.insertBefore(bubbleContainer, chatMessagesDiv.firstChild);
+            return bubbleContainer;
         };
         
         const updateConnectionStatus = (status) => {
@@ -298,17 +309,25 @@
 
         const resizeCanvas = () => {
             const parent = canvas.parentElement;
-            let imageData = null;
-            if (canvas.width > 0 && canvas.height > 0) {
-                imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            
+            const tempCanvas = document.createElement('canvas');
+            const tempCtx = tempCanvas.getContext('2d');
+            const oldWidth = canvas.width;
+            const oldHeight = canvas.height;
+
+            if (oldWidth > 0 && oldHeight > 0) {
+                tempCanvas.width = oldWidth;
+                tempCanvas.height = oldHeight;
+                tempCtx.drawImage(canvas, 0, 0);
             }
+
             canvas.width = parent.clientWidth;
             canvas.height = parent.clientHeight;
             
             applyCanvasStyles(); 
 
-            if (imageData) {
-                ctx.putImageData(imageData, 0, 0);
+            if (oldWidth > 0 && oldHeight > 0) {
+                ctx.drawImage(tempCanvas, 0, 0, oldWidth, oldHeight, 0, 0, canvas.width, canvas.height);
             }
         };
 
@@ -471,7 +490,6 @@
                         const actionsContainer = document.createElement('div');
                         actionsContainer.className = 'flex items-center gap-2 mt-1';
 
-                        // ** FIX: Use an anchor tag styled as a button for "Open" **
                         const openBtn = document.createElement('a');
                         openBtn.textContent = 'Open';
                         openBtn.href = url;
@@ -487,8 +505,11 @@
                         actionsContainer.appendChild(openBtn);
                         actionsContainer.appendChild(downloadLink);
 
-                        fileData.msgElement.querySelector('div:last-child').innerHTML = `Received ${fileData.name}`; 
-                        fileData.msgElement.querySelector('div:last-child').appendChild(actionsContainer);
+                        const messageContentDiv = fileData.msgElement.querySelector('.message-content');
+                        if (messageContentDiv) {
+                            messageContentDiv.innerHTML = `Received: ${fileData.name}`;
+                            messageContentDiv.appendChild(actionsContainer);
+                        }
                         
                         delete fileChunks[data.fileId];
                     }
