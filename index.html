@@ -213,6 +213,7 @@
         let isHost = false;
         let currentColor = '#000000', currentBrushSize = 5, isErasing = false;
         const fileChunks = {};
+        let userDisplayList = {}; // ** FIX: Use a separate object for UI display **
 
         // --- UTILITY FUNCTIONS ---
         const showAlert = (message) => {
@@ -276,7 +277,7 @@
             selfBubble.textContent = myPeerId.split('-')[0] + ' (You)';
             userListDiv.appendChild(selfBubble);
 
-            for(const peerId in connections) {
+            for(const peerId in userDisplayList) {
                 const peerBubble = document.createElement('div');
                 peerBubble.className = 'bg-gray-600 text-white text-sm font-semibold px-3 py-1 rounded-full';
                 peerBubble.textContent = peerId.split('-')[0];
@@ -416,19 +417,21 @@
                 connections[conn.peer] = conn;
                 
                 if (isHost) {
-                    // Tell the new peer about everyone else
-                    const peerList = Object.keys(connections);
-                    conn.send({ type: 'peer-list', peers: peerList });
-                    // Tell everyone else about the new peer
-                    broadcast({ type: 'new-peer', peerId: conn.peer });
+                    userDisplayList[conn.peer] = {};
+                    const userList = [myPeerId, ...Object.keys(userDisplayList)];
+                    broadcast({ type: 'user-list-update', users: userList });
                 }
 
                 updateConnectionStatus('Connected');
-                addChatMessage(`${conn.peer.split('-')[0]} has joined the room.`, 'System', 'system');
+                if(!isHost) addChatMessage(`${conn.peer.split('-')[0]} (Host) has joined the room.`, 'System', 'system');
                 updateUserList();
             });
 
             conn.on('data', (data) => {
+                if(isHost && data.sender !== myPeerId) {
+                    broadcast(data);
+                }
+
                 if (data.type === 'file-meta') {
                     fileChunks[data.fileId] = { chunks: [], name: data.name, size: data.size, mimeType: data.mimeType, receivedSize: 0, msgElement: addChatMessage(`Receiving ${data.name}... <progress id="progress-${data.fileId}" value="0" max="${data.size}" class="w-full"></progress>`, data.sender.split('-')[0]) };
                 } else if (data.type === 'file-chunk') {
@@ -465,20 +468,19 @@
                     }
                 } else if (data.type === 'chat') {
                     addChatMessage(data.message, data.sender.split('-')[0]);
-                    if (isHost) broadcast(data); // Host relays chat
                 } else if (data.type === 'draw') {
                     const { x0, y0, x1, y1, color, size, erase } = data;
                     drawLine(x0 * canvas.width, y0 * canvas.height, x1 * canvas.width, y1 * canvas.height, color, size, erase);
-                    if (isHost) broadcast(data); // Host relays drawing
                 } else if (data.type === 'clear') {
                     clearCanvas();
-                    if (isHost) broadcast(data); // Host relays clear
-                } else if (data.type === 'peer-list') {
-                    // New client receives list of peers from host
-                    data.peers.forEach(peerId => connectToPeer(peerId));
-                } else if (data.type === 'new-peer') {
-                    // Existing client connects to a newcomer
-                    connectToPeer(data.peerId);
+                } else if (data.type === 'user-list-update') {
+                    userDisplayList = {};
+                    data.users.forEach(userId => {
+                        if (userId !== myPeerId) {
+                            userDisplayList[userId] = {};
+                        }
+                    });
+                    updateUserList();
                 }
             });
 
@@ -486,7 +488,11 @@
                 console.log(`Connection from ${conn.peer} closed.`);
                 addChatMessage(`${conn.peer.split('-')[0]} has left the room.`, 'System', 'system');
                 delete connections[conn.peer];
-                if(Object.keys(connections).length === 0) updateConnectionStatus('Waiting for connection...');
+                delete userDisplayList[conn.peer];
+                if (isHost) {
+                     broadcast({ type: 'user-list-update', users: [myPeerId, ...Object.keys(userDisplayList)] });
+                }
+                if(Object.keys(connections).length === 0 && !isHost) updateConnectionStatus('Disconnected');
                 updateUserList();
             });
             
@@ -496,19 +502,30 @@
             });
         };
 
-        const connectToPeer = (idToConnect) => {
-             if (!peer || peer.disconnected || !idToConnect || idToConnect === myPeerId || connections[idToConnect]) {
+        const connectToHost = async (db, hostId) => {
+             if (!peer || peer.disconnected) {
+                showAlert("Not connected to the service. Please refresh.");
                 return;
             }
-            console.log(`Attempting to connect to ${idToConnect}`);
+            if (!hostId || hostId === myPeerId) return;
+
+            const roomDocRef = doc(db, "rooms", hostId);
+            const roomDoc = await getDoc(roomDocRef);
+            if (!roomDoc.exists()) {
+                showAlert("This Room ID does not exist. Please check the ID or link.");
+                return;
+            }
+
+            console.log(`Attempting to connect to host ${hostId}`);
             try {
-                const conn = peer.connect(idToConnect, { reliable: true });
+                const conn = peer.connect(hostId, { reliable: true });
                 setupConnection(conn);
             } catch (error) {
                 console.error("Connection failed:", error);
-                showAlert("Failed to connect. Make sure the ID is correct and the user is online.");
+                showAlert("Failed to connect to the room. Make sure the ID is correct.");
             }
         };
+
 
         // --- MAIN APP INITIALIZATION ---
         const main = async () => {
@@ -519,11 +536,9 @@
             roomId = window.location.hash.substring(1);
 
             if (roomId) {
-                // This user is JOINING a room
                 isHost = false;
                 myPeerId = generateFriendlyId();
             } else {
-                // This user is CREATING a room
                 isHost = true;
                 myPeerId = generateFriendlyId('host-');
                 roomId = myPeerId;
@@ -539,13 +554,19 @@
             updateUserList();
             updateConnectionStatus('Waiting for connection...');
 
-            if (!isHost) {
+            if (isHost) {
+                const roomDocRef = doc(db, "rooms", roomId);
+                await setDoc(roomDocRef, { host: myPeerId });
+            } else {
                 setTimeout(() => {
-                    connectToPeer(roomId);
+                    connectToHost(db, roomId);
                 }, 1000); 
             }
             
             window.addEventListener('beforeunload', async () => {
+                if (isHost) {
+                    await deleteDoc(doc(db, "rooms", myPeerId));
+                }
                 if (peer && !peer.destroyed) peer.destroy();
             });
         };
