@@ -115,7 +115,7 @@
             </div>
             
             <!-- Drawing Canvas -->
-            <div class="bg-white rounded-lg shadow-lg flex-grow relative canvas-container">
+            <div id="canvas-bg" class="bg-white rounded-lg shadow-lg flex-grow relative canvas-container">
                 <canvas id="drawing-canvas"></canvas>
             </div>
         </div>
@@ -186,6 +186,7 @@
         const copyLinkBtn = document.getElementById('copy-link-btn');
         const connectionStatusDiv = document.getElementById('connection-status');
         const canvas = document.getElementById('drawing-canvas');
+        const canvasBg = document.getElementById('canvas-bg');
         const chatMessagesDiv = document.getElementById('chat-messages');
         const chatInput = document.getElementById('chat-input');
         const sendChatBtn = document.getElementById('send-chat-btn');
