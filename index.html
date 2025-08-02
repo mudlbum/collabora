@@ -97,11 +97,18 @@
                             </div>
                         </div>
                         <div class="flex-grow w-full">
-                             <label for="friend-id" class="text-sm font-medium text-gray-400">Add Friend's ID to Room</label>
+                             <label for="friend-id" class="text-sm font-medium text-gray-400">Join Room by ID</label>
                             <div class="flex items-center mt-1">
-                                <input type="text" id="friend-id" placeholder="Enter friend's ID" class="w-full bg-gray-700 p-2 rounded-l-md border border-gray-600 focus:ring-cyan-500 focus:border-cyan-500">
-                                <button id="add-btn" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-r-md transition-colors">Add</button>
+                                <input type="text" id="friend-id" placeholder="Enter Room ID" class="w-full bg-gray-700 p-2 rounded-l-md border border-gray-600 focus:ring-cyan-500 focus:border-cyan-500">
+                                <button id="connect-btn" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-r-md transition-colors">Join</button>
                             </div>
+                        </div>
+                    </div>
+                     <div class="mt-2">
+                        <label for="share-link" class="text-sm font-medium text-gray-400">Or Share a Link (Auto-Joins)</label>
+                        <div class="flex items-center bg-gray-700 rounded-md mt-1">
+                            <input type="text" id="share-link" class="w-full bg-transparent p-2 border-none focus:ring-0" placeholder="Generating link..." readonly>
+                            <button id="copy-link-btn" class="bg-purple-500 hover:bg-purple-600 text-white font-bold py-2 px-4 rounded-r-md transition-colors" disabled>Copy Link</button>
                         </div>
                     </div>
                 </div>
@@ -192,7 +199,9 @@
         const roomIdInput = document.getElementById('room-id');
         const copyIdBtn = document.getElementById('copy-id-btn');
         const friendIdInput = document.getElementById('friend-id');
-        const addBtn = document.getElementById('add-btn');
+        const connectBtn = document.getElementById('connect-btn');
+        const shareLinkInput = document.getElementById('share-link');
+        const copyLinkBtn = document.getElementById('copy-link-btn');
         const connectionStatusDiv = document.getElementById('connection-status');
         const canvas = document.getElementById('drawing-canvas');
         const chatMessagesDiv = document.getElementById('chat-messages');
@@ -220,6 +229,7 @@
         let drawing = false;
         let lastX = 0, lastY = 0;
         let myPeerId = null;
+        let currentRoomId = null;
         let isHost = false;
         let currentColor = '#000000', currentBrushSize = 5, isErasing = false;
         const fileChunks = {};
@@ -345,8 +355,8 @@
                         connections[peerId].send(data);
                     }
                 }
-            } else if (connections[roomId] && connections[roomId].open) {
-                connections[roomId].send(data);
+            } else if (connections[currentRoomId] && connections[currentRoomId].open) {
+                connections[currentRoomId].send(data);
             }
         };
 
@@ -438,9 +448,8 @@
 
             conn.on('data', (data) => {
                 if(isHost && data.sender !== myPeerId) {
-                    // Host relays data to all other clients
                     for(const peerId in connections) {
-                        if(peerId !== data.sender) { // Don't send it back to the original sender
+                        if(peerId !== data.sender) {
                            if(connections[peerId] && connections[peerId].open) {
                                 connections[peerId].send(data);
                            }
@@ -490,7 +499,6 @@
                 } else if (data.type === 'clear') {
                     clearCanvas();
                 } else if (data.type === 'user-list') {
-                    // For clients receiving user list from host
                     data.users.forEach(userId => {
                         if(userId !== myPeerId && !connections[userId]) {
                             const conn = peer.connect(userId, { reliable: true });
@@ -514,6 +522,37 @@
             });
         };
 
+        const connectToHost = async (db, hostId) => {
+             if (!peer || peer.disconnected) {
+                showAlert("Not connected to the service. Please refresh.");
+                return;
+            }
+            if (!hostId) {
+                showAlert("Please enter a Room ID.");
+                return;
+            }
+            if (hostId === myPeerId) {
+                return;
+            }
+
+            const roomDocRef = doc(db, "rooms", hostId);
+            const roomDoc = await getDoc(roomDocRef);
+            if (!roomDoc.exists()) {
+                showAlert("This Room ID does not exist. Please check the ID or link.");
+                return;
+            }
+
+            console.log(`Attempting to connect to host ${hostId}`);
+            try {
+                const conn = peer.connect(hostId, { reliable: true });
+                setupConnection(conn);
+            } catch (error) {
+                console.error("Connection failed:", error);
+                showAlert("Failed to connect to the room. Make sure the ID is correct.");
+            }
+        };
+
+
         // --- MAIN APP INITIALIZATION ---
         const main = async () => {
             resizeCanvas();
@@ -521,39 +560,58 @@
             if (!db) return;
 
             const roomIdFromUrl = window.location.hash.substring(1);
+
             if (roomIdFromUrl) {
-                // This user is joining a room
+                // This user is JOINING a room
                 isHost = false;
+                currentRoomId = roomIdFromUrl;
                 myPeerId = generateFriendlyId();
                 await initializePeer(myPeerId);
-                roomIdInput.value = roomIdFromUrl;
+                roomIdInput.value = `Your ID: ${myPeerId}`;
+                friendIdInput.value = roomIdFromUrl;
                 
-                const roomDocRef = doc(db, "rooms", roomIdFromUrl);
-                const roomDoc = await getDoc(roomDocRef);
-                if(roomDoc.exists()) {
-                    const hostId = roomDoc.data().host;
-                    console.log(`Joining room. Host is ${hostId}`);
-                    const conn = peer.connect(hostId, { reliable: true });
-                    setupConnection(conn);
-                } else {
-                    showAlert("Room not found. Please check the link.");
-                }
+                setTimeout(() => {
+                    connectToHost(db, roomIdFromUrl);
+                }, 1000);
 
             } else {
-                // This user is creating a room
+                // This user is CREATING a room
                 isHost = true;
                 myPeerId = generateFriendlyId('host-');
+                currentRoomId = myPeerId;
                 await initializePeer(myPeerId);
                 roomIdInput.value = myPeerId;
                 const url = new URL(window.location.href);
                 url.hash = myPeerId;
-                // shareLinkInput.value = url.href; // This was removed in the UI revert
+                shareLinkInput.value = url.href;
                 copyIdBtn.disabled = false;
+                copyLinkBtn.disabled = false;
                 updateConnectionStatus('Waiting for connection...');
                 updateUserList();
                 const roomDocRef = doc(db, "rooms", myPeerId);
                 await setDoc(roomDocRef, { host: myPeerId });
             }
+            
+            // ** FIX: Changed variable name from addBtn to connectBtn **
+            connectBtn.addEventListener('click', () => {
+                if(isHost) {
+                    // Host adds a client
+                    const idToAdd = friendIdInput.value.trim();
+                    if(idToAdd) {
+                        const conn = peer.connect(idToAdd, { reliable: true });
+                        setupConnection(conn);
+                    }
+                } else {
+                    // Client joins a room
+                    connectToHost(db, friendIdInput.value.trim());
+                }
+            });
+
+            friendIdInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                   connectBtn.click();
+                }
+            });
             
             window.addEventListener('beforeunload', async () => {
                 if (isHost) {
@@ -605,13 +663,12 @@
             copyIdBtn.textContent = 'Copied!';
             setTimeout(() => { copyIdBtn.textContent = 'Copy ID'; }, 2000);
         });
-
-        addBtn.addEventListener('click', () => {
-            const idToAdd = friendIdInput.value.trim();
-            if(idToAdd) {
-                const conn = peer.connect(idToAdd, { reliable: true });
-                setupConnection(conn);
-            }
+        
+        copyLinkBtn.addEventListener('click', () => {
+            shareLinkInput.select();
+            document.execCommand('copy');
+            copyLinkBtn.textContent = 'Copied!';
+            setTimeout(() => { copyLinkBtn.textContent = 'Copy Link'; }, 2000);
         });
 
         attachFileBtn.addEventListener('click', () => fileInput.click());
