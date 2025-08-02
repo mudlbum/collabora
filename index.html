@@ -550,7 +550,6 @@
             if (roomId) {
                 isHost = false;
                 myPeerId = generateFriendlyId();
-                joinSection.style.display = 'none'; // Hide join section for guests
             } else {
                 isHost = true;
                 myPeerId = generateFriendlyId('host-');
@@ -574,20 +573,6 @@
                 setTimeout(() => {
                     connectToHost(db, roomId);
                 }, 1000); 
-            }
-            
-            if (joinBtn) {
-                joinBtn.addEventListener('click', () => {
-                    if(!isHost) {
-                        connectToHost(db, joinIdInput.value.trim());
-                    }
-                });
-
-                joinIdInput.addEventListener('keydown', (e) => {
-                    if (e.key === 'Enter') {
-                       joinBtn.click();
-                    }
-                });
             }
             
             window.addEventListener('beforeunload', async () => {
