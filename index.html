@@ -288,9 +288,7 @@
         };
 
         // --- CANVAS LOGIC ---
-        // ** FIX: New function to apply styles to the canvas context **
         const applyCanvasStyles = () => {
-            // Re-getting context with this attribute can improve performance
             ctx = canvas.getContext('2d', { willReadFrequently: true });
             ctx.lineCap = 'round';
             ctx.lineJoin = 'round';
@@ -305,7 +303,7 @@
             canvas.width = parent.clientWidth;
             canvas.height = parent.clientHeight;
             
-            applyCanvasStyles(); // Apply styles to the new context
+            applyCanvasStyles(); 
 
             if (imageData) {
                 ctx.putImageData(imageData, 0, 0);
@@ -352,11 +350,9 @@
             ctx.globalCompositeOperation = 'source-over';
         };
 
-        // ** FIX: Use a more robust clearing method **
         const clearCanvas = () => {
-            // This trick fully resets the canvas state, fixing the drawing bug
             canvas.width = canvas.width;
-            applyCanvasStyles(); // Re-apply styles after reset
+            applyCanvasStyles(); 
         };
 
         // --- FILE TRANSFER LOGIC ---
@@ -366,7 +362,8 @@
                 return;
             }
             const fileId = `${Date.now()}-${file.name}`;
-            const metadata = { type: 'file-meta', name: file.name, size: file.size, fileId: fileId };
+            // ** FIX: Include mimeType in metadata **
+            const metadata = { type: 'file-meta', name: file.name, size: file.size, fileId: fileId, mimeType: file.type };
             
             const msgElement = addChatMessage(`Sending ${file.name}... <progress id="progress-${fileId}" value="0" max="${file.size}" class="w-full"></progress>`, 'You');
             
@@ -454,6 +451,7 @@
                         chunks: [],
                         name: data.name,
                         size: data.size,
+                        mimeType: data.mimeType, // ** FIX: Store mimeType **
                         receivedSize: 0,
                         msgElement: addChatMessage(`Receiving ${data.name}... <progress id="progress-${data.fileId}" value="0" max="${data.size}" class="w-full"></progress>`, 'Friend')
                     };
@@ -466,15 +464,31 @@
                     if(progress) progress.value = fileData.receivedSize;
 
                     if (fileData.receivedSize === fileData.size) {
-                        const fileBlob = new Blob(fileData.chunks);
+                        // ** FIX: Use mimeType when creating Blob **
+                        const fileBlob = new Blob(fileData.chunks, { type: fileData.mimeType });
                         const url = URL.createObjectURL(fileBlob);
-                        const a = document.createElement('a');
-                        a.href = url;
-                        a.download = fileData.name;
-                        a.textContent = `Download ${fileData.name}`;
-                        a.className = "text-blue-400 underline";
-                        fileData.msgElement.querySelector('div:last-child').innerHTML = '';
-                        fileData.msgElement.querySelector('div:last-child').appendChild(a);
+                        
+                        // ** FEATURE: Create container for buttons **
+                        const actionsContainer = document.createElement('div');
+                        actionsContainer.className = 'flex items-center gap-2 mt-1';
+
+                        const openBtn = document.createElement('button');
+                        openBtn.textContent = 'Open';
+                        openBtn.className = 'bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold py-1 px-2 rounded';
+                        openBtn.onclick = () => window.open(url, '_blank');
+                        
+                        const downloadLink = document.createElement('a');
+                        downloadLink.href = url;
+                        downloadLink.download = fileData.name;
+                        downloadLink.textContent = `Download ${fileData.name}`;
+                        downloadLink.className = "text-blue-400 underline";
+                        
+                        actionsContainer.appendChild(openBtn);
+                        actionsContainer.appendChild(downloadLink);
+
+                        fileData.msgElement.querySelector('div:last-child').innerHTML = ''; // Clear progress bar
+                        fileData.msgElement.querySelector('div:last-child').appendChild(actionsContainer); // Add buttons
+                        
                         delete fileChunks[data.fileId];
                     }
                 } else if (data.type === 'chat') {
