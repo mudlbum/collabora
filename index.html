@@ -88,11 +88,20 @@
                 <!-- Connection Controls -->
                 <div>
                     <h2 class="text-lg font-semibold mb-3">Connection</h2>
-                     <div class="mt-2">
-                        <label for="share-link" class="text-sm font-medium text-gray-400">Share this Room Link to Invite Others</label>
-                        <div class="flex items-center bg-gray-700 rounded-md mt-1">
-                            <input type="text" id="share-link" class="w-full bg-transparent p-2 border-none focus:ring-0" placeholder="Generating link..." readonly>
-                            <button id="copy-link-btn" class="bg-purple-500 hover:bg-purple-600 text-white font-bold py-2 px-4 rounded-r-md transition-colors" disabled>Copy Link</button>
+                    <div class="flex flex-col sm:flex-row gap-3 items-center">
+                         <div class="flex-grow w-full">
+                            <label for="share-link" class="text-sm font-medium text-gray-400">Share this Room Link to Invite Others</label>
+                            <div class="flex items-center bg-gray-700 rounded-md mt-1">
+                                <input type="text" id="share-link" class="w-full bg-transparent p-2 border-none focus:ring-0" placeholder="Generating link..." readonly>
+                                <button id="copy-link-btn" class="bg-purple-500 hover:bg-purple-600 text-white font-bold py-2 px-4 rounded-r-md transition-colors" disabled>Copy Link</button>
+                            </div>
+                        </div>
+                        <div class="flex-grow w-full">
+                             <label for="join-id-input" class="text-sm font-medium text-gray-400">Or Join Room by ID</label>
+                            <div class="flex items-center mt-1">
+                                <input type="text" id="join-id-input" placeholder="Enter Room ID" class="w-full bg-gray-700 p-2 rounded-l-md border border-gray-600 focus:ring-cyan-500 focus:border-cyan-500">
+                                <button id="join-btn" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-r-md transition-colors">Join</button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -182,6 +191,8 @@
         // --- ELEMENT SELECTORS ---
         const shareLinkInput = document.getElementById('share-link');
         const copyLinkBtn = document.getElementById('copy-link-btn');
+        const joinIdInput = document.getElementById('join-id-input');
+        const joinBtn = document.getElementById('join-btn');
         const connectionStatusDiv = document.getElementById('connection-status');
         const canvas = document.getElementById('drawing-canvas');
         const chatMessagesDiv = document.getElementById('chat-messages');
@@ -330,8 +341,7 @@
         };
 
         const broadcast = (data, excludePeer = null) => {
-            const targetPeers = isHost ? Object.keys(connections) : [roomId];
-            targetPeers.forEach(peerId => {
+            Object.keys(connections).forEach(peerId => {
                 if (peerId !== excludePeer) {
                     const conn = connections[peerId];
                     if (conn && conn.open) {
@@ -346,7 +356,8 @@
             e.preventDefault();
             const coords = getEventCoords(e);
             drawLine(lastX, lastY, coords.x, coords.y, currentColor, currentBrushSize, isErasing);
-            broadcast({ type: 'draw', sender: myPeerId, x0: lastX / canvas.width, y0: lastY / canvas.height, x1: coords.x / canvas.width, y1: coords.y / canvas.height, color: currentColor, size: currentBrushSize, erase: isErasing }, null);
+            broadcast({ type: 'draw', sender: myPeerId, x0: lastX / canvas.width, y0: lastY / canvas.height, x1: coords.x / canvas.width, y1: coords.y / canvas.height, color: currentColor, size: currentBrushSize, erase: isErasing }, myPeerId);
+            if (!isHost) connections[roomId]?.send({ type: 'draw', sender: myPeerId, x0: lastX / canvas.width, y0: lastY / canvas.height, x1: coords.x / canvas.width, y1: coords.y / canvas.height, color: currentColor, size: currentBrushSize, erase: isErasing });
             [lastX, lastY] = [coords.x, coords.y];
         };
         
@@ -375,13 +386,16 @@
             const fileId = `${Date.now()}-${file.name}`;
             const metadata = { type: 'file-meta', name: file.name, size: file.size, fileId: fileId, mimeType: file.type, sender: myPeerId };
             addChatMessage(`Sending ${file.name}... <progress id="progress-${fileId}" value="0" max="${file.size}" class="w-full"></progress>`, 'You');
-            broadcast(metadata);
+            broadcast(metadata, myPeerId);
+            if (!isHost) connections[roomId]?.send(metadata);
             const chunkSize = 16384;
             const reader = new FileReader();
             let offset = 0;
             reader.onload = (e) => {
                 if (!e.target.error) {
-                    broadcast({ type: 'file-chunk', fileId: fileId, data: e.target.result });
+                    const chunkData = { type: 'file-chunk', fileId: fileId, data: e.target.result, sender: myPeerId };
+                    broadcast(chunkData, myPeerId);
+                    if (!isHost) connections[roomId]?.send(chunkData);
                     offset += e.target.result.byteLength;
                     const progress = document.getElementById(`progress-${fileId}`);
                     if(progress) progress.value = offset;
@@ -424,16 +438,15 @@
                     userDisplayList[conn.peer] = {};
                     const userList = [myPeerId, ...Object.keys(userDisplayList)];
                     broadcast({ type: 'user-list-update', users: userList });
-                    updateUserList();
                 }
-
                 updateConnectionStatus('Connected');
                 addChatMessage(`${conn.peer.split('-')[0]} has joined the room.`, 'System', 'system');
+                updateUserList();
             });
 
             conn.on('data', (data) => {
-                if(isHost) {
-                    broadcast(data, data.sender); // Host relays data to all other clients
+                if(isHost && data.sender !== myPeerId) {
+                    broadcast(data, conn.peer); // Host relays data to all other clients
                 }
 
                 if (data.type === 'file-meta') {
@@ -565,6 +578,18 @@
                     connectToHost(db, roomId);
                 }, 1000); 
             }
+            
+            joinBtn.addEventListener('click', () => {
+                if(!isHost) {
+                    connectToHost(db, joinIdInput.value.trim());
+                }
+            });
+
+            joinIdInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                   joinBtn.click();
+                }
+            });
             
             window.addEventListener('beforeunload', async () => {
                 if (isHost) {
