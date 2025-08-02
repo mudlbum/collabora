@@ -20,6 +20,10 @@
         #drawing-canvas {
             cursor: crosshair;
             touch-action: none;
+            /* ** FIX: Ensure canvas fills its container ** */
+            display: block;
+            width: 100%;
+            height: 100%;
         }
         #chat-messages::-webkit-scrollbar {
             width: 6px;
@@ -58,13 +62,11 @@
             opacity: 0.5;
             cursor: not-allowed;
         }
+        /* ** FIX for Aspect Ratio ** */
         .canvas-container {
-            height: 60vh; /* Default height for mobile */
-        }
-        @media (min-width: 768px) { /* md breakpoint */
-            .canvas-container {
-                height: auto; /* Let flexbox control height on desktop */
-            }
+            width: 100%;
+            aspect-ratio: 16 / 9; /* Enforce a 16:9 aspect ratio */
+            max-height: 70vh; /* Prevent it from getting too tall on mobile */
         }
     </style>
 </head>
@@ -362,7 +364,6 @@
                 return;
             }
             const fileId = `${Date.now()}-${file.name}`;
-            // ** FIX: Include mimeType in metadata **
             const metadata = { type: 'file-meta', name: file.name, size: file.size, fileId: fileId, mimeType: file.type };
             
             const msgElement = addChatMessage(`Sending ${file.name}... <progress id="progress-${fileId}" value="0" max="${file.size}" class="w-full"></progress>`, 'You');
@@ -451,7 +452,7 @@
                         chunks: [],
                         name: data.name,
                         size: data.size,
-                        mimeType: data.mimeType, // ** FIX: Store mimeType **
+                        mimeType: data.mimeType, 
                         receivedSize: 0,
                         msgElement: addChatMessage(`Receiving ${data.name}... <progress id="progress-${data.fileId}" value="0" max="${data.size}" class="w-full"></progress>`, 'Friend')
                     };
@@ -464,30 +465,30 @@
                     if(progress) progress.value = fileData.receivedSize;
 
                     if (fileData.receivedSize === fileData.size) {
-                        // ** FIX: Use mimeType when creating Blob **
                         const fileBlob = new Blob(fileData.chunks, { type: fileData.mimeType });
                         const url = URL.createObjectURL(fileBlob);
                         
-                        // ** FEATURE: Create container for buttons **
                         const actionsContainer = document.createElement('div');
                         actionsContainer.className = 'flex items-center gap-2 mt-1';
 
-                        const openBtn = document.createElement('button');
+                        // ** FIX: Use an anchor tag styled as a button for "Open" **
+                        const openBtn = document.createElement('a');
                         openBtn.textContent = 'Open';
-                        openBtn.className = 'bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold py-1 px-2 rounded';
-                        openBtn.onclick = () => window.open(url, '_blank');
+                        openBtn.href = url;
+                        openBtn.target = '_blank'; // Opens in a new tab
+                        openBtn.className = 'bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold py-1 px-2 rounded no-underline';
                         
                         const downloadLink = document.createElement('a');
                         downloadLink.href = url;
                         downloadLink.download = fileData.name;
-                        downloadLink.textContent = `Download ${fileData.name}`;
+                        downloadLink.textContent = `Download`;
                         downloadLink.className = "text-blue-400 underline";
                         
                         actionsContainer.appendChild(openBtn);
                         actionsContainer.appendChild(downloadLink);
 
-                        fileData.msgElement.querySelector('div:last-child').innerHTML = ''; // Clear progress bar
-                        fileData.msgElement.querySelector('div:last-child').appendChild(actionsContainer); // Add buttons
+                        fileData.msgElement.querySelector('div:last-child').innerHTML = `Received ${fileData.name}`; 
+                        fileData.msgElement.querySelector('div:last-child').appendChild(actionsContainer);
                         
                         delete fileChunks[data.fileId];
                     }
