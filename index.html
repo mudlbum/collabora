@@ -386,13 +386,13 @@
         };
 
         // --- PEERJS LOGIC ---
-        const initializePeer = async (db) => {
+        const initializePeer = async (db, id) => {
             if (!db) {
                 myIdInput.value = 'Service Failed';
                 return null;
             }
             
-            myPeerId = generateFriendlyId();
+            myPeerId = id;
             
             const peerDocRef = doc(db, "peers", myPeerId);
             await setDoc(peerDocRef, { createdAt: new Date() });
@@ -481,8 +481,7 @@
                     connection = null;
                 }
             });
-
-            // ** FIX: Added error handler for the specific connection attempt **
+            
             conn.on('error', (err) => {
                 console.error(`Connection error with ${conn.peer}:`, err);
                 showAlert(`Could not connect to ${conn.peer}. Please ensure the ID is correct and they are online.`);
@@ -525,8 +524,8 @@
             const db = await initializeFirebase();
             if (!db) return;
 
-            const localPeer = await initializePeer(db);
             const friendIdFromUrl = window.location.hash.substring(1);
+            const localPeer = await initializePeer(db, generateFriendlyId());
 
             if (friendIdFromUrl && localPeer) {
                 console.log(`Found friend ID in URL: ${friendIdFromUrl}. Auto-connecting.`);
