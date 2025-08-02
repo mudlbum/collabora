@@ -115,7 +115,7 @@
             </div>
             
             <!-- Drawing Canvas -->
-            <div id="canvas-bg" class="bg-white rounded-lg shadow-lg flex-grow relative canvas-container">
+            <div id="canvas-bg" class="bg-white rounded-lg shadow-lg flex-grow relative canvas-container p-2">
                 <canvas id="drawing-canvas"></canvas>
             </div>
         </div>
@@ -290,19 +290,25 @@
         
         // --- THEME LOGIC ---
         const updateTheme = () => {
-            if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-                // Dark mode
-                canvasBg.classList.remove('bg-white');
-                canvasBg.classList.add('bg-gray-900');
-                currentColor = '#FFFFFF';
+            const isDarkMode = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+            if (isDarkMode) {
+                canvasBg.classList.remove('bg-black');
+                canvasBg.classList.add('bg-white'); // White frame
+                currentColor = '#FFFFFF'; // White pen
                 colorPicker.value = '#FFFFFF';
             } else {
-                // Light mode
-                canvasBg.classList.remove('bg-gray-900');
-                canvasBg.classList.add('bg-white');
-                currentColor = '#000000';
+                canvasBg.classList.remove('bg-white');
+                canvasBg.classList.add('bg-black'); // Black frame
+                currentColor = '#000000'; // Black pen
                 colorPicker.value = '#000000';
             }
+            clearCanvas(); // Redraw canvas with new background
+        };
+
+        const drawCanvasBackground = () => {
+            const isDarkMode = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+            ctx.fillStyle = isDarkMode ? '#111827' : '#FFFFFF'; // gray-900 or white
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
         };
 
 
@@ -327,6 +333,7 @@
             canvas.width = parent.clientWidth;
             canvas.height = parent.clientHeight;
             applyCanvasStyles(); 
+            drawCanvasBackground();
             if (oldWidth > 0 && oldHeight > 0) {
                 ctx.drawImage(tempCanvas, 0, 0, oldWidth, oldHeight, 0, 0, canvas.width, canvas.height);
             }
@@ -389,6 +396,7 @@
         const clearCanvas = () => {
             canvas.width = canvas.width;
             applyCanvasStyles(); 
+            drawCanvasBackground();
         };
 
         // --- FILE TRANSFER LOGIC ---
