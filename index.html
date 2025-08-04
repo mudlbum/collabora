@@ -618,6 +618,8 @@
 
         // --- FULLSCREEN LOGIC ---
         const enterFullscreen = () => {
+            if (!fullscreenOverlay.classList.contains('hidden')) return;
+
             fullscreenOverlay.classList.remove('hidden');
             fullscreenOverlay.classList.add('flex');
             fullscreenCanvasContainer.appendChild(canvasBg);
@@ -636,20 +638,27 @@
         };
 
         const exitFullscreen = () => {
+            if (fullscreenOverlay.classList.contains('hidden')) return;
+
             fullscreenOverlay.classList.add('hidden');
             fullscreenOverlay.classList.remove('flex');
+            
             leftPanel.appendChild(canvasBg);
             
-            const toolsParent = mainToolsContainer.querySelector('.grid');
-            const fsTools = fullscreenTools.querySelectorAll('div, button');
+            const toolsParentGrid = mainToolsContainer.querySelector('.grid');
             
-            // Re-insert tools in original order
-            toolsParent.insertBefore(fsTools[0], toolsParent.children[1]); // Color picker
-            toolsParent.insertBefore(fsTools[1], toolsParent.children[3]); // Undo
-            toolsParent.insertBefore(fsTools[2], toolsParent.children[4]); // Eraser
-            toolsParent.insertBefore(fsTools[3], toolsParent.children[5]); // Clear
+            const colorContainer = fullscreenTools.querySelector('.flex.items-center.gap-2');
+            const undoButton = fullscreenTools.querySelector('#undo-btn');
+            const eraserButton = fullscreenTools.querySelector('#eraser-btn');
+            const clearButton = fullscreenTools.querySelector('#clear-btn');
+
+            // Restore tools to their original parent
+            toolsParentGrid.insertBefore(colorContainer, brushSizeSlider.parentElement.nextSibling);
+            toolsParentGrid.appendChild(undoButton);
+            toolsParentGrid.appendChild(eraserButton);
+            toolsParentGrid.appendChild(clearButton);
             
-            document.getElementById('exit-fullscreen-btn').remove();
+            fullscreenTools.innerHTML = ''; // Clean up the entire toolbar
 
             resizeCanvas();
         };
