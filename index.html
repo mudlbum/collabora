@@ -928,7 +928,7 @@
 
             fullscreenOverlay.classList.remove('hidden');
             fullscreenOverlay.classList.add('flex');
-            fullscreenCanvasContainer.appendChild(canvas.parentElement);
+            fullscreenCanvasContainer.appendChild(canvasContainer);
             
             const toolsToMove = [
                 mainToolsContainer.querySelector('.flex.items-center.gap-2'), // color picker container
@@ -951,7 +951,7 @@
             fullscreenOverlay.classList.remove('flex');
             
             const originalParent = document.querySelector('.xl\\:col-span-2');
-            originalParent.appendChild(canvas.parentElement);
+            originalParent.appendChild(canvasContainer);
             
             const toolsParentGrid = mainToolsContainer.querySelector('.grid');
             
@@ -1169,4 +1169,4 @@
 
     </script>
 </body>
-</ht
+</html>
