@@ -261,8 +261,48 @@
     <main class="container mx-auto px-6 py-8">
         <div class="grid grid-cols-1 xl:grid-cols-3 gap-8">
             
-            <!-- Left Column: Canvas and Controls -->
-            <div id="left-panel" class="xl:col-span-2 space-y-6">
+            <!-- Right Column: Chat (MOVED FIRST FOR MOBILE) -->
+            <div id="right-panel" class="xl:col-span-1 xl:order-last">
+                <div class="card chat-container flex flex-col">
+                    <!-- Users Section -->
+                    <div class="p-6 border-b border-gray-600">
+                        <div class="section-title">
+                            <i class="fas fa-users"></i>
+                            Users in Room
+                        </div>
+                        <div id="user-list" class="flex flex-wrap gap-2">
+                            <!-- User badges will be injected here -->
+                        </div>
+                    </div>
+                    
+                    <!-- Chat Messages -->
+                    <div id="chat-messages" class="flex-1 p-4 overflow-y-auto flex flex-col-reverse">
+                        <div class="message-bubble system">
+                            <i class="fas fa-info-circle mr-2"></i>
+                            Welcome! Copy the link above to invite friends.
+                        </div>
+                    </div>
+                    
+                    <!-- Chat Input -->
+                    <div class="p-6 border-t border-gray-600">
+                        <div class="flex gap-3">
+                            <input type="file" id="file-input" class="hidden">
+                            <button id="attach-file-btn" class="btn-secondary p-3">
+                                <i class="fas fa-paperclip"></i>
+                            </button>
+                            <input type="text" id="chat-input" 
+                                   placeholder="Type a message..." 
+                                   class="input-modern flex-1 px-4 py-3">
+                            <button id="send-chat-btn" class="btn-primary px-6 py-3">
+                                <i class="fas fa-paper-plane"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Left Column: Canvas and Controls (MOVED SECOND FOR MOBILE) -->
+            <div id="left-panel" class="xl:col-span-2 space-y-6 xl:order-first">
                 
                 <!-- Connection Panel -->
                 <div class="card p-6">
@@ -347,45 +387,6 @@
                 </div>
             </div>
 
-            <!-- Right Column: Chat -->
-            <div id="right-panel" class="xl:col-span-1">
-                <div class="card chat-container flex flex-col">
-                    <!-- Users Section -->
-                    <div class="p-6 border-b border-gray-600">
-                        <div class="section-title">
-                            <i class="fas fa-users"></i>
-                            Users in Room
-                        </div>
-                        <div id="user-list" class="flex flex-wrap gap-2">
-                            <!-- User badges will be injected here -->
-                        </div>
-                    </div>
-                    
-                    <!-- Chat Messages -->
-                    <div id="chat-messages" class="flex-1 p-4 overflow-y-auto flex flex-col-reverse">
-                        <div class="message-bubble system">
-                            <i class="fas fa-info-circle mr-2"></i>
-                            Welcome! Copy the link above to invite friends.
-                        </div>
-                    </div>
-                    
-                    <!-- Chat Input -->
-                    <div class="p-6 border-t border-gray-600">
-                        <div class="flex gap-3">
-                            <input type="file" id="file-input" class="hidden">
-                            <button id="attach-file-btn" class="btn-secondary p-3">
-                                <i class="fas fa-paperclip"></i>
-                            </button>
-                            <input type="text" id="chat-input" 
-                                   placeholder="Type a message..." 
-                                   class="input-modern flex-1 px-4 py-3">
-                            <button id="send-chat-btn" class="btn-primary px-6 py-3">
-                                <i class="fas fa-paper-plane"></i>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
         </div>
     </main>
     
@@ -400,8 +401,8 @@
     </div>
 
     <!-- Modal for custom alerts -->
-    <div id="custom-alert" class="modal-backdrop hidden">
-        <div class="modal-content">
+    <div id="custom-alert" class="modal-backdrop hidden z-[999]">
+        <div class="modal-content modal-content-animated">
             <div class="text-center mb-6">
                 <i class="fas fa-exclamation-triangle text-4xl text-yellow-400 mb-4"></i>
                 <p id="alert-message" class="text-lg"></p>
@@ -411,8 +412,8 @@
     </div>
     
     <!-- Modal for Clear Canvas confirmation -->
-    <div id="clear-confirm-modal" class="modal-backdrop hidden">
-        <div class="modal-content">
+    <div id="clear-confirm-modal" class="modal-backdrop hidden z-[999]">
+        <div class="modal-content modal-content-animated">
             <div class="text-center mb-6">
                 <i class="fas fa-trash text-4xl text-red-400 mb-4"></i>
                 <p id="clear-confirm-message" class="text-lg">Are you sure you want to clear the canvas for everyone?</p>
@@ -953,8 +954,12 @@
             ];
             toolsToMove.forEach(tool => fullscreenTools.appendChild(tool));
             
-            const exitBtn = document.getElementById('exit-fullscreen-btn');
+            const exitBtn = document.createElement('button');
+            exitBtn.innerHTML = '<i class="fas fa-compress"></i>';
+            exitBtn.className = 'tool-btn btn-secondary p-3';
+            exitBtn.id = 'exit-fullscreen-btn';
             exitBtn.onclick = exitFullscreen;
+            fullscreenTools.appendChild(exitBtn);
 
             resizeCanvas();
         };
@@ -965,8 +970,7 @@
             fullscreenOverlay.classList.add('hidden');
             fullscreenOverlay.classList.remove('flex');
             
-            const originalParent = document.querySelector('.xl\\:col-span-2');
-            originalParent.appendChild(canvasContainer);
+            leftPanel.appendChild(canvasContainer);
             
             const toolsParentGrid = mainToolsContainer.querySelector('.grid');
             
@@ -980,6 +984,8 @@
             toolsParentGrid.appendChild(undoButton);
             toolsParentGrid.appendChild(eraserButton);
             toolsParentGrid.appendChild(clearButton);
+            
+            fullscreenTools.innerHTML = ''; // Clean up the entire toolbar
 
             resizeCanvas();
         };
