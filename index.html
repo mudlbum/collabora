@@ -97,9 +97,9 @@
                     </div>
                 </div>
                 <!-- Drawing Tools -->
-                <div>
+                <div id="main-tools-container">
                     <h2 class="text-lg font-semibold mb-3">Tools</h2>
-                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 items-center">
+                    <div class="grid grid-cols-3 md:grid-cols-5 gap-4 items-center">
                         <div class="flex items-center gap-2">
                             <label for="color-picker" class="text-sm font-medium text-gray-400">Color:</label>
                             <input type="color" id="color-picker" value="#000000" class="w-10 h-10 rounded-md cursor-pointer">
@@ -108,8 +108,11 @@
                             <label for="brush-size" class="text-sm font-medium text-gray-400">Size: <span id="brush-size-label">5</span>px</label>
                             <input type="range" id="brush-size" min="1" max="50" value="5" class="w-full">
                         </div>
+                        <button id="undo-btn" class="tool-btn bg-gray-600 hover:bg-gray-500 p-2 rounded-md transition-colors flex items-center justify-center">
+                           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v6h6"></path><path d="M21 12a9 9 0 0 0-14.65-6.65L3 9"></path></svg>
+                        </button>
                         <button id="eraser-btn" class="tool-btn bg-gray-600 hover:bg-gray-500 p-2 rounded-md transition-colors">Eraser</button>
-                        <button id="clear-btn" class="bg-red-600 hover:bg-red-500 p-2 rounded-md transition-colors">Clear Canvas</button>
+                        <button id="clear-btn" class="bg-red-600 hover:bg-red-500 p-2 rounded-md transition-colors">Clear</button>
                     </div>
                 </div>
             </div>
@@ -117,6 +120,9 @@
             <!-- Drawing Canvas -->
             <div id="canvas-bg" class="bg-white rounded-lg shadow-lg flex-grow relative canvas-container p-2">
                 <canvas id="drawing-canvas"></canvas>
+                <button id="fullscreen-btn" class="absolute top-2 right-2 bg-gray-700 bg-opacity-50 hover:bg-opacity-75 text-white p-2 rounded-full transition-opacity">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path></svg>
+                </button>
             </div>
         </div>
 
@@ -146,6 +152,14 @@
         </div>
     </main>
     
+    <!-- Fullscreen Overlay -->
+    <div id="fullscreen-overlay" class="fixed inset-0 bg-gray-800 z-50 hidden flex-col items-center justify-center">
+        <div id="fullscreen-canvas-container" class="w-full h-full"></div>
+        <div id="fullscreen-tools" class="absolute bottom-4 bg-gray-700 p-3 rounded-xl shadow-lg flex items-center gap-4">
+            <!-- Tools will be moved here -->
+        </div>
+    </div>
+
     <!-- Modal for custom alerts -->
     <div id="custom-alert" class="modal-backdrop hidden">
         <div class="modal-content">
@@ -198,6 +212,7 @@
         const brushSizeSlider = document.getElementById('brush-size');
         const brushSizeLabel = document.getElementById('brush-size-label');
         const eraserBtn = document.getElementById('eraser-btn');
+        const undoBtn = document.getElementById('undo-btn');
         const clearBtn = document.getElementById('clear-btn');
         const clearConfirmModal = document.getElementById('clear-confirm-modal');
         const clearConfirmBtn = document.getElementById('clear-confirm-btn');
@@ -205,6 +220,12 @@
         const fileInput = document.getElementById('file-input');
         const attachFileBtn = document.getElementById('attach-file-btn');
         const userListDiv = document.getElementById('user-list');
+        const fullscreenBtn = document.getElementById('fullscreen-btn');
+        const fullscreenOverlay = document.getElementById('fullscreen-overlay');
+        const fullscreenCanvasContainer = document.getElementById('fullscreen-canvas-container');
+        const fullscreenTools = document.getElementById('fullscreen-tools');
+        const mainToolsContainer = document.getElementById('main-tools-container');
+
 
         // --- STATE VARIABLES ---
         let peer;
@@ -215,8 +236,11 @@
         let roomId = null;
         let isHost = false;
         let currentColor = '#000000', currentBrushSize = 5, isErasing = false;
+        let savedColor = '#000000';
         const fileChunks = {};
         let userDisplayList = {}; 
+        let drawingHistory = [];
+        const HISTORY_LIMIT = 20;
 
         // --- UTILITY FUNCTIONS ---
         const showAlert = (message) => {
@@ -294,20 +318,25 @@
             if (isDarkMode) {
                 canvasBg.classList.remove('bg-black');
                 canvasBg.classList.add('bg-white'); // White frame
-                currentColor = '#FFFFFF'; // White pen
                 colorPicker.value = '#FFFFFF';
             } else {
                 canvasBg.classList.remove('bg-white');
                 canvasBg.classList.add('bg-black'); // Black frame
-                currentColor = '#000000'; // Black pen
                 colorPicker.value = '#000000';
             }
-            clearCanvas(); // Redraw canvas with new background
+            currentColor = colorPicker.value;
+            savedColor = currentColor;
+            isErasing = false;
+            eraserBtn.classList.remove('active');
+            clearCanvas();
         };
 
+        const getCanvasBgColor = () => {
+            return window.matchMedia('(prefers-color-scheme: dark)').matches ? '#111827' : '#FFFFFF';
+        }
+
         const drawCanvasBackground = () => {
-            const isDarkMode = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-            ctx.fillStyle = isDarkMode ? '#111827' : '#FFFFFF'; // gray-900 or white
+            ctx.fillStyle = getCanvasBgColor();
             ctx.fillRect(0, 0, canvas.width, canvas.height);
         };
 
@@ -344,9 +373,27 @@
             const event = e.touches ? e.touches[0] : e;
             return { x: event.clientX - rect.left, y: event.clientY - rect.top };
         };
+        
+        const saveHistory = () => {
+            if (drawingHistory.length > HISTORY_LIMIT) {
+                drawingHistory.shift(); // Remove the oldest state
+            }
+            drawingHistory.push(ctx.getImageData(0, 0, canvas.width, canvas.height));
+        };
+
+        const undoLastAction = (broadcastUndo = true) => {
+            if (drawingHistory.length > 0) {
+                const lastState = drawingHistory.pop();
+                ctx.putImageData(lastState, 0, 0);
+                if (broadcastUndo) {
+                    broadcast({ type: 'undo', sender: myPeerId });
+                }
+            }
+        };
 
         const startDrawing = (e) => {
             e.preventDefault();
+            saveHistory(); // Save state before drawing
             drawing = true;
             const coords = getEventCoords(e);
             [lastX, lastY] = [coords.x, coords.y];
@@ -372,8 +419,8 @@
             if (!drawing) return;
             e.preventDefault();
             const coords = getEventCoords(e);
-            drawLine(lastX, lastY, coords.x, coords.y, currentColor, currentBrushSize, isErasing);
-            const drawData = { type: 'draw', sender: myPeerId, x0: lastX / canvas.width, y0: lastY / canvas.height, x1: coords.x / canvas.width, y1: coords.y / canvas.height, color: currentColor, size: currentBrushSize, erase: isErasing };
+            drawLine(lastX, lastY, coords.x, coords.y, currentColor, currentBrushSize);
+            const drawData = { type: 'draw', sender: myPeerId, x0: lastX / canvas.width, y0: lastY / canvas.height, x1: coords.x / canvas.width, y1: coords.y / canvas.height, color: currentColor, size: currentBrushSize };
             if (isHost) {
                 broadcast(drawData, myPeerId);
             } else if (connections[roomId]) {
@@ -382,15 +429,13 @@
             [lastX, lastY] = [coords.x, coords.y];
         };
         
-        const drawLine = (x0, y0, x1, y1, color, size, erase) => {
+        const drawLine = (x0, y0, x1, y1, color, size) => {
             ctx.beginPath();
-            ctx.globalCompositeOperation = erase ? 'destination-out' : 'source-over';
             ctx.strokeStyle = color;
             ctx.lineWidth = size;
             ctx.moveTo(x0, y0);
             ctx.lineTo(x1, y1);
             ctx.stroke();
-            ctx.globalCompositeOperation = 'source-over';
         };
 
         const clearCanvas = () => {
@@ -509,11 +554,14 @@
                 } else if (data.type === 'chat') {
                     addChatMessage(data.message, data.sender.split('-')[0]);
                 } else if (data.type === 'draw') {
-                    const { x0, y0, x1, y1, color, size, erase } = data;
-                    drawLine(x0 * canvas.width, y0 * canvas.height, x1 * canvas.width, y1 * canvas.height, color, size, erase);
+                    const { x0, y0, x1, y1, color, size } = data;
+                    drawLine(x0 * canvas.width, y0 * canvas.height, x1 * canvas.width, y1 * canvas.height, color, size);
                 } else if (data.type === 'clear') {
                     clearCanvas();
-                } else if (data.type === 'user-list-update') {
+                } else if (data.type === 'undo') {
+                    undoLastAction(false);
+                }
+                else if (data.type === 'user-list-update') {
                     userDisplayList = {};
                     data.users.forEach(userId => {
                         if (userId !== myPeerId) {
@@ -626,6 +674,7 @@
 
         colorPicker.addEventListener('change', (e) => {
             currentColor = e.target.value;
+            savedColor = currentColor;
             isErasing = false;
             eraserBtn.classList.remove('active');
         });
@@ -638,6 +687,22 @@
         eraserBtn.addEventListener('click', () => {
             isErasing = !isErasing;
             eraserBtn.classList.toggle('active', isErasing);
+            if(isErasing) {
+                savedColor = colorPicker.value;
+                currentColor = getCanvasBgColor();
+            } else {
+                currentColor = savedColor;
+            }
+        });
+
+        undoBtn.addEventListener('click', () => undoLastAction());
+        window.addEventListener('keydown', (e) => {
+            if (e.ctrlKey || e.metaKey) {
+                if (e.key === 'z') {
+                    e.preventDefault();
+                    undoLastAction();
+                }
+            }
         });
 
         clearBtn.addEventListener('click', () => clearConfirmModal.classList.remove('hidden'));
@@ -666,8 +731,9 @@
             const message = chatInput.value.trim();
             if (message) {
                 addChatMessage(message, 'You');
-                broadcast({ type: 'chat', message: message, sender: myPeerId }, myPeerId);
-                if(!isHost) connections[roomId]?.send({ type: 'chat', message: message, sender: myPeerId });
+                const chatData = { type: 'chat', message: message, sender: myPeerId };
+                if (isHost) broadcast(chatData, myPeerId);
+                else if(connections[roomId]) connections[roomId].send(chatData);
                 chatInput.value = '';
             }
         });
