@@ -33,12 +33,6 @@
             overflow-x: hidden;
         }
 
-        .glass {
-            background: rgba(255, 255, 255, 0.05);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
         .card {
             background: var(--gradient-card);
             box-shadow: var(--shadow-primary);
@@ -261,8 +255,8 @@
     <main class="container mx-auto px-6 py-8">
         <div class="grid grid-cols-1 xl:grid-cols-3 gap-8">
             
-            <!-- Right Column: Chat (MOVED FIRST FOR MOBILE) -->
-            <div id="right-panel" class="xl:col-span-1 xl:order-last">
+            <!-- Right Column: Chat -->
+            <div id="right-panel" class="xl:col-span-1 order-first xl:order-last">
                 <div class="card chat-container flex flex-col">
                     <!-- Users Section -->
                     <div class="p-6 border-b border-gray-600">
@@ -301,8 +295,8 @@
                 </div>
             </div>
 
-            <!-- Left Column: Canvas and Controls (MOVED SECOND FOR MOBILE) -->
-            <div id="left-panel" class="xl:col-span-2 space-y-6 xl:order-first">
+            <!-- Left Column: Canvas and Controls -->
+            <div id="left-panel" class="xl:col-span-2 space-y-6 order-last xl:order-first">
                 
                 <!-- Connection Panel -->
                 <div class="card p-6">
@@ -954,12 +948,8 @@
             ];
             toolsToMove.forEach(tool => fullscreenTools.appendChild(tool));
             
-            const exitBtn = document.createElement('button');
-            exitBtn.innerHTML = '<i class="fas fa-compress"></i>';
-            exitBtn.className = 'tool-btn btn-secondary p-3';
-            exitBtn.id = 'exit-fullscreen-btn';
+            const exitBtn = document.getElementById('exit-fullscreen-btn');
             exitBtn.onclick = exitFullscreen;
-            fullscreenTools.appendChild(exitBtn);
 
             resizeCanvas();
         };
@@ -984,8 +974,6 @@
             toolsParentGrid.appendChild(undoButton);
             toolsParentGrid.appendChild(eraserButton);
             toolsParentGrid.appendChild(clearButton);
-            
-            fullscreenTools.innerHTML = ''; // Clean up the entire toolbar
 
             resizeCanvas();
         };
