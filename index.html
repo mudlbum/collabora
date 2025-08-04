@@ -21,7 +21,7 @@
             --gradient-secondary: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
             --gradient-tertiary: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
             --gradient-dark: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-            --gradient-card: linear-gradient(145deg, #2d3748 0%, #1a202c 100%);
+            --gradient-card: linear-gradient(145deg, rgba(45, 55, 72, 0.8) 0%, rgba(26, 32, 44, 0.8) 100%);
             --shadow-primary: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
             --shadow-elevated: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
         }
@@ -39,27 +39,12 @@
             border: 1px solid rgba(255, 255, 255, 0.1);
         }
 
-        .gradient-primary {
-            background: var(--gradient-primary);
-        }
-
-        .gradient-secondary {
-            background: var(--gradient-secondary);
-        }
-
-        .gradient-tertiary {
-            background: var(--gradient-tertiary);
-        }
-
         .card {
             background: var(--gradient-card);
             box-shadow: var(--shadow-primary);
             border-radius: 1rem;
             border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .card-elevated {
-            box-shadow: var(--shadow-elevated);
+            backdrop-filter: blur(10px);
         }
 
         #drawing-canvas {
@@ -72,11 +57,9 @@
         }
 
         .canvas-container {
-            background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
             border-radius: 1rem;
             box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
             aspect-ratio: 16 / 9;
-            min-height: 400px;
             position: relative;
             overflow: hidden;
         }
@@ -99,30 +82,13 @@
             color: #1a202c;
             box-shadow: var(--shadow-primary);
         }
-
-        .tool-btn::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-            transition: left 0.5s;
-        }
-
-        .tool-btn:hover::before {
-            left: 100%;
-        }
-
+        
         .status-indicator {
             border-radius: 9999px;
             font-weight: 600;
             font-size: 0.875rem;
             padding: 0.5rem 1rem;
             transition: all 0.3s ease;
-            position: relative;
-            overflow: hidden;
         }
 
         .status-connected {
@@ -141,13 +107,15 @@
         }
 
         .chat-container {
-            height: 60vh;
+            height: 80vh;
             min-height: 500px;
         }
-
-        #chat-messages {
-            background: linear-gradient(145deg, #2d3748 0%, #1a202c 100%);
-            border-radius: 0.75rem;
+        
+        @media (max-width: 1280px) {
+             .chat-container {
+                height: 60vh;
+                min-height: 400px;
+            }
         }
 
         #chat-messages::-webkit-scrollbar {
@@ -170,19 +138,18 @@
             margin-bottom: 0.75rem;
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
             position: relative;
-            backdrop-filter: blur(10px);
         }
 
         .message-bubble.own {
             background: var(--gradient-tertiary);
             color: #1a202c;
-            margin-left: 2rem;
+            margin-left: auto;
         }
 
         .message-bubble.other {
             background: rgba(255, 255, 255, 0.1);
             color: #ffffff;
-            margin-right: 2rem;
+            margin-right: auto;
         }
 
         .message-bubble.system {
@@ -204,8 +171,7 @@
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
         }
 
-        .user-badge.host {
-            background: var(--gradient-secondary);
+        .user-badge.is-host {
             cursor: pointer;
         }
 
@@ -244,68 +210,7 @@
             transform: translateY(-2px);
             box-shadow: var(--shadow-elevated);
         }
-
-        .btn-secondary {
-            background: rgba(255, 255, 255, 0.1);
-            color: white;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            border-radius: 0.75rem;
-            font-weight: 500;
-            transition: all 0.3s ease;
-            backdrop-filter: blur(10px);
-        }
-
-        .btn-secondary:hover {
-            background: rgba(255, 255, 255, 0.2);
-            transform: translateY(-2px);
-        }
-
-        .modal-backdrop {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.8);
-            backdrop-filter: blur(10px);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 100;
-        }
-
-        .modal-content {
-            background: var(--gradient-card);
-            padding: 2rem;
-            border-radius: 1rem;
-            text-align: center;
-            box-shadow: var(--shadow-elevated);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            max-width: 90%;
-            width: 500px;
-        }
-
-        .section-title {
-            color: #e2e8f0;
-            font-weight: 600;
-            font-size: 1.1rem;
-            margin-bottom: 1rem;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        .control-group {
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 0.75rem;
-            padding: 1rem;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .fullscreen-overlay {
-            background: var(--gradient-dark);
-        }
-
+        
         .floating-toolbar {
             background: var(--gradient-card);
             border-radius: 1rem;
@@ -313,80 +218,6 @@
             box-shadow: var(--shadow-elevated);
             border: 1px solid rgba(255, 255, 255, 0.1);
             backdrop-filter: blur(20px);
-        }
-
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-        }
-
-        .pulse {
-            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-        }
-
-        .range-slider {
-            appearance: none;
-            background: rgba(255, 255, 255, 0.2);
-            height: 6px;
-            border-radius: 3px;
-            outline: none;
-        }
-
-        .range-slider::-webkit-slider-thumb {
-            appearance: none;
-            width: 20px;
-            height: 20px;
-            border-radius: 50%;
-            background: var(--gradient-tertiary);
-            cursor: pointer;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
-        }
-
-        .color-picker {
-            appearance: none;
-            border: none;
-            border-radius: 50%;
-            width: 50px;
-            height: 50px;
-            cursor: pointer;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-            transition: all 0.3s ease;
-        }
-
-        .color-picker:hover {
-            transform: scale(1.1);
-            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
-        }
-
-        /* PDF Optimization */
-        @media print {
-            body {
-                background: white !important;
-                color: black !important;
-            }
-            .card, .glass {
-                background: white !important;
-                border: 1px solid #e5e7eb !important;
-                box-shadow: none !important;
-            }
-        }
-
-        /* Responsive Design */
-        @media (max-width: 1280px) {
-            .canvas-container {
-                aspect-ratio: 4 / 3;
-            }
-        }
-
-        @media (max-width: 768px) {
-            .canvas-container {
-                aspect-ratio: 1 / 1;
-                min-height: 300px;
-            }
-            .chat-container {
-                height: 50vh;
-                min-height: 400px;
-            }
         }
     </style>
 </head>
@@ -416,7 +247,7 @@
         <div class="grid grid-cols-1 xl:grid-cols-3 gap-8">
             
             <!-- Left Column: Canvas and Controls -->
-            <div class="xl:col-span-2 space-y-6">
+            <div id="left-panel" class="xl:col-span-2 space-y-6">
                 
                 <!-- Connection Panel -->
                 <div class="card p-6">
@@ -442,77 +273,57 @@
                 </div>
 
                 <!-- Drawing Tools -->
-                <div class="card p-6">
+                <div id="main-tools-container" class="card p-6">
                     <div class="section-title">
                         <i class="fas fa-tools"></i>
                         Drawing Tools
                     </div>
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                        <!-- Color Picker -->
-                        <div class="control-group text-center">
-                            <label class="block text-sm font-medium text-gray-300 mb-3">Color</label>
-                            <input type="color" id="color-picker" value="#000000" 
-                                   class="color-picker mx-auto">
+                    <div class="grid grid-cols-2 lg:grid-cols-5 gap-4 items-center">
+                        <div class="flex items-center gap-2">
+                            <label for="color-picker" class="text-sm font-medium text-gray-300">Color:</label>
+                            <input type="color" id="color-picker" value="#000000" class="w-12 h-12 rounded-full cursor-pointer border-2 border-gray-600">
                         </div>
-                        
-                        <!-- Brush Size -->
-                        <div class="control-group">
+                        <div class="col-span-2 lg:col-span-1">
                             <label class="block text-sm font-medium text-gray-300 mb-2">
                                 Size: <span id="brush-size-label" class="font-semibold text-blue-300">5</span>px
                             </label>
-                            <input type="range" id="brush-size" min="1" max="50" value="5" 
-                                   class="range-slider w-full">
+                            <input type="range" id="brush-size" min="1" max="50" value="5" class="w-full">
                         </div>
-                        
-                        <!-- Action Buttons -->
-                        <div class="control-group space-y-2">
-                            <button id="undo-btn" class="tool-btn btn-secondary w-full py-3 flex items-center justify-center gap-2">
-                                <i class="fas fa-undo"></i>
-                                Undo
-                            </button>
-                            <button id="eraser-btn" class="tool-btn btn-secondary w-full py-3 flex items-center justify-center gap-2">
-                                <i class="fas fa-eraser"></i>
-                                Eraser
-                            </button>
-                        </div>
-                        
-                        <div class="control-group">
-                            <button id="clear-btn" class="btn-primary w-full py-3 flex items-center justify-center gap-2" 
-                                    style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);">
-                                <i class="fas fa-trash"></i>
-                                Clear Canvas
-                            </button>
-                        </div>
+                        <button id="undo-btn" class="tool-btn btn-secondary py-3 flex items-center justify-center gap-2">
+                            <i class="fas fa-undo"></i> Undo
+                        </button>
+                        <button id="eraser-btn" class="tool-btn btn-secondary py-3 flex items-center justify-center gap-2">
+                            <i class="fas fa-eraser"></i> Eraser
+                        </button>
+                        <button id="clear-btn" class="tool-btn btn-secondary py-3 flex items-center justify-center gap-2 text-red-400">
+                            <i class="fas fa-trash"></i> Clear
+                        </button>
                     </div>
                 </div>
-
-                <!-- Voice Controls -->
+                 <!-- Voice Controls -->
                 <div class="card p-6">
-                    <div class="section-title">
-                        <i class="fas fa-microphone"></i>
-                        Voice Chat
-                    </div>
-                    <div class="control-group">
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <button id="start-call-btn" class="btn-primary py-3 flex items-center justify-center gap-2">
-                                <i class="fas fa-microphone"></i>
-                                Start Call
-                            </button>
-                            <button id="mute-btn" class="tool-btn btn-secondary py-3 items-center justify-center gap-2 hidden">
-                                <i class="fas fa-microphone-slash"></i>
-                                Mute
-                            </button>
-                            <button id="end-call-btn" class="tool-btn py-3 items-center justify-center gap-2 hidden"
-                                    style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);">
-                                <i class="fas fa-phone-slash"></i>
-                                End Call
-                            </button>
-                        </div>
-                    </div>
+                     <div class="section-title">
+                         <i class="fas fa-microphone"></i>
+                         Voice Chat
+                     </div>
+                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <button id="start-call-btn" class="btn-primary py-3 flex items-center justify-center gap-2">
+                            <i class="fas fa-microphone"></i>
+                            Start Call
+                        </button>
+                        <button id="mute-btn" class="tool-btn btn-secondary py-3 items-center justify-center gap-2 hidden">
+                           <!-- Mute/Unmute Icon here -->
+                        </button>
+                        <button id="end-call-btn" class="tool-btn py-3 items-center justify-center gap-2 hidden"
+                                 style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);">
+                            <i class="fas fa-phone-slash"></i>
+                            End Call
+                        </button>
+                     </div>
                 </div>
-                
+            
                 <!-- Drawing Canvas -->
-                <div class="canvas-container">
+                <div id="canvas-bg" class="canvas-container">
                     <canvas id="drawing-canvas"></canvas>
                     <button id="fullscreen-btn" 
                             class="absolute top-4 right-4 bg-black bg-opacity-50 hover:bg-opacity-75 text-white p-3 rounded-full transition-all duration-300 hover:scale-110">
@@ -522,7 +333,7 @@
             </div>
 
             <!-- Right Column: Chat -->
-            <div class="xl:col-span-1">
+            <div id="right-panel" class="xl:col-span-1">
                 <div class="card chat-container flex flex-col">
                     <!-- Users Section -->
                     <div class="p-6 border-b border-gray-600">
@@ -570,10 +381,6 @@
         </div>
         <div id="fullscreen-tools" class="absolute bottom-8 floating-toolbar flex items-center gap-4">
             <!-- Tools will be moved here -->
-            <button id="exit-fullscreen-btn" class="tool-btn btn-secondary px-4 py-2 flex items-center gap-2">
-                <i class="fas fa-compress"></i>
-                Exit Fullscreen
-            </button>
         </div>
     </div>
 
@@ -596,11 +403,11 @@
                 <p id="clear-confirm-message" class="text-lg">Are you sure you want to clear the canvas for everyone?</p>
             </div>
             <div class="flex justify-center gap-4">
-                <button id="clear-cancel-btn" class="btn-secondary px-6 py-3">Cancel</button>
-                <button id="clear-confirm-btn" class="btn-primary px-6 py-3" 
-                        style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);">
-                    Clear Canvas
-                </button>
+                 <button id="clear-cancel-btn" class="btn-secondary px-6 py-3">Cancel</button>
+                 <button id="clear-confirm-btn" class="btn-primary px-6 py-3" 
+                         style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);">
+                     Clear Canvas
+                 </button>
             </div>
         </div>
     </div>
@@ -656,6 +463,9 @@
         const muteBtn = document.getElementById('mute-btn');
         const endCallBtn = document.getElementById('end-call-btn');
         const audioContainer = document.getElementById('audio-container');
+        const canvasContainer = document.getElementById('canvas-bg');
+        const mainToolsContainer = document.getElementById('main-tools-container');
+        const leftPanel = document.getElementById('left-panel');
 
         // --- STATE VARIABLES ---
         let peer;
@@ -674,6 +484,7 @@
         let localStream;
         let isMuted = false;
         let remoteMuteStates = {};
+        let isFullscreen = false;
 
         // --- UTILITY FUNCTIONS ---
         const showAlert = (message) => {
@@ -749,16 +560,14 @@
         const updateUserList = () => {
             userListDiv.innerHTML = '';
             
-            // Add self
             const selfBadge = document.createElement('div');
             selfBadge.className = 'user-badge';
             selfBadge.innerHTML = `<i class="fas fa-crown mr-2"></i>${myPeerId.split('-')[0]} (You)`;
             userListDiv.appendChild(selfBadge);
 
-            // Add other users
             for(const peerId in userDisplayList) {
                 const peerBadge = document.createElement('div');
-                peerBadge.className = `user-badge ${isHost ? 'host' : ''}`;
+                peerBadge.className = `user-badge ${isHost ? 'is-host' : ''}`;
                 
                 let badgeContent = `<i class="fas fa-user mr-2"></i>${peerId.split('-')[0]}`;
                 
@@ -780,6 +589,7 @@
             }
         };
         
+        // --- THEME LOGIC ---
         const updateTheme = () => {
             const isDarkMode = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
             if (isDarkMode) {
@@ -795,13 +605,14 @@
         };
 
         const getCanvasBgColor = () => {
-            return '#FFFFFF';
+            return window.matchMedia('(prefers-color-scheme: dark)').matches ? '#1a202c' : '#ffffff';
         }
 
         const drawCanvasBackground = () => {
             ctx.fillStyle = getCanvasBgColor();
             ctx.fillRect(0, 0, canvas.width, canvas.height);
         };
+
 
         // --- CANVAS LOGIC ---
         const applyCanvasStyles = () => {
@@ -816,18 +627,15 @@
             const tempCtx = tempCanvas.getContext('2d');
             const oldWidth = canvas.width;
             const oldHeight = canvas.height;
-            
             if (oldWidth > 0 && oldHeight > 0) {
                 tempCanvas.width = oldWidth;
                 tempCanvas.height = oldHeight;
                 tempCtx.drawImage(canvas, 0, 0);
             }
-            
             canvas.width = parent.clientWidth;
             canvas.height = parent.clientHeight;
             applyCanvasStyles(); 
             drawCanvasBackground();
-            
             if (oldWidth > 0 && oldHeight > 0) {
                 ctx.drawImage(tempCanvas, 0, 0, oldWidth, oldHeight, 0, 0, canvas.width, canvas.height);
             }
@@ -885,16 +693,7 @@
             e.preventDefault();
             const coords = getEventCoords(e);
             drawLine(lastX, lastY, coords.x, coords.y, currentColor, currentBrushSize);
-            const drawData = { 
-                type: 'draw', 
-                sender: myPeerId, 
-                x0: lastX / canvas.width, 
-                y0: lastY / canvas.height, 
-                x1: coords.x / canvas.width, 
-                y1: coords.y / canvas.height, 
-                color: currentColor, 
-                size: currentBrushSize 
-            };
+            const drawData = { type: 'draw', sender: myPeerId, x0: lastX / canvas.width, y0: lastY / canvas.height, x1: coords.x / canvas.width, y1: coords.y / canvas.height, color: currentColor, size: currentBrushSize };
             if (isHost) {
                 broadcast(drawData, myPeerId);
             } else if (connections[roomId]) {
@@ -1007,18 +806,11 @@
 
             conn.on('data', (data) => {
                 if(isHost && data.sender !== myPeerId) {
-                    broadcast(data, conn.peer);
+                    broadcast(data, conn.peer); // Host relays data to all other clients
                 }
 
                 if (data.type === 'file-meta') {
-                    fileChunks[data.fileId] = { 
-                        chunks: [], 
-                        name: data.name, 
-                        size: data.size, 
-                        mimeType: data.mimeType, 
-                        receivedSize: 0, 
-                        msgElement: addChatMessage(`<i class="fas fa-download mr-2"></i>Receiving ${data.name}... <progress id="progress-${data.fileId}" value="0" max="${data.size}" class="w-full mt-2 rounded-full"></progress>`, data.sender.split('-')[0]) 
-                    };
+                    fileChunks[data.fileId] = { chunks: [], name: data.name, size: data.size, mimeType: data.mimeType, receivedSize: 0, msgElement: addChatMessage(`<i class="fas fa-download mr-2"></i>Receiving ${data.name}... <progress id="progress-${data.fileId}" value="0" max="${data.size}" class="w-full mt-2 rounded-full"></progress>`, data.sender.split('-')[0]) };
                 } else if (data.type === 'file-chunk') {
                     const fileData = fileChunks[data.fileId];
                     if (!fileData) return;
@@ -1136,12 +928,16 @@
 
             fullscreenOverlay.classList.remove('hidden');
             fullscreenOverlay.classList.add('flex');
+            fullscreenCanvasContainer.appendChild(canvas.parentElement);
             
-            // Move canvas container to fullscreen
-            const canvasContainer = canvas.parentElement;
-            fullscreenCanvasContainer.appendChild(canvasContainer);
+            const toolsToMove = [
+                mainToolsContainer.querySelector('.flex.items-center.gap-2'), // color picker container
+                undoBtn, 
+                eraserBtn, 
+                clearBtn
+            ];
+            toolsToMove.forEach(tool => fullscreenTools.appendChild(tool));
             
-            // Create exit button
             const exitBtn = document.getElementById('exit-fullscreen-btn');
             exitBtn.onclick = exitFullscreen;
 
@@ -1154,10 +950,21 @@
             fullscreenOverlay.classList.add('hidden');
             fullscreenOverlay.classList.remove('flex');
             
-            // Move canvas back to original location
-            const canvasContainer = canvas.parentElement;
             const originalParent = document.querySelector('.xl\\:col-span-2');
-            originalParent.appendChild(canvasContainer);
+            originalParent.appendChild(canvas.parentElement);
+            
+            const toolsParentGrid = mainToolsContainer.querySelector('.grid');
+            
+            const colorContainer = fullscreenTools.querySelector('.flex.items-center.gap-2');
+            const undoButton = fullscreenTools.querySelector('#undo-btn');
+            const eraserButton = fullscreenTools.querySelector('#eraser-btn');
+            const clearButton = fullscreenTools.querySelector('#clear-btn');
+
+            // Restore tools to their original parent
+            toolsParentGrid.insertBefore(colorContainer, brushSizeSlider.parentElement.nextSibling);
+            toolsParentGrid.appendChild(undoButton);
+            toolsParentGrid.appendChild(eraserButton);
+            toolsParentGrid.appendChild(clearButton);
 
             resizeCanvas();
         };
@@ -1165,7 +972,7 @@
         // --- MAIN APP INITIALIZATION ---
         const main = async () => {
             resizeCanvas();
-            updateTheme();
+            updateTheme(); // Set initial theme
             const db = await initializeFirebase();
             if (!db) return;
 
@@ -1312,6 +1119,7 @@
                 endCallBtn.classList.remove('hidden');
                 updateMuteButton();
 
+                // Call existing peers
                 Object.keys(connections).forEach(peerId => {
                     console.log(`Calling existing peer ${peerId}`);
                     const call = peer.call(peerId, localStream);
@@ -1361,4 +1169,4 @@
 
     </script>
 </body>
-</html>
+</ht
