@@ -3,198 +3,604 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Collabra - P2P Group Drawing & Chat</title>
+    <title>Collabra - Modern P2P Drawing & Chat</title>
     <!-- Tailwind CSS for styling -->
-    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
     <!-- PeerJS for P2P communication -->
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <!-- Google Fonts: Inter -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         /* Custom styles to complement Tailwind */
+        :root {
+            --gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --gradient-secondary: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            --gradient-tertiary: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            --gradient-dark: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            --gradient-card: linear-gradient(145deg, #2d3748 0%, #1a202c 100%);
+            --shadow-primary: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            --shadow-elevated: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+
         body {
             font-family: 'Inter', sans-serif;
+            background: var(--gradient-dark);
+            min-height: 100vh;
+            overflow-x: hidden;
         }
+
+        .glass {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .gradient-primary {
+            background: var(--gradient-primary);
+        }
+
+        .gradient-secondary {
+            background: var(--gradient-secondary);
+        }
+
+        .gradient-tertiary {
+            background: var(--gradient-tertiary);
+        }
+
+        .card {
+            background: var(--gradient-card);
+            box-shadow: var(--shadow-primary);
+            border-radius: 1rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .card-elevated {
+            box-shadow: var(--shadow-elevated);
+        }
+
         #drawing-canvas {
             cursor: crosshair;
             touch-action: none;
             display: block;
             width: 100%;
             height: 100%;
+            border-radius: 0.75rem;
         }
+
+        .canvas-container {
+            background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
+            border-radius: 1rem;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+            aspect-ratio: 16 / 9;
+            min-height: 400px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .tool-btn {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            border-radius: 0.75rem;
+            font-weight: 500;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .tool-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-primary);
+        }
+
+        .tool-btn.active {
+            background: var(--gradient-tertiary);
+            color: #1a202c;
+            box-shadow: var(--shadow-primary);
+        }
+
+        .tool-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.5s;
+        }
+
+        .tool-btn:hover::before {
+            left: 100%;
+        }
+
+        .status-indicator {
+            border-radius: 9999px;
+            font-weight: 600;
+            font-size: 0.875rem;
+            padding: 0.5rem 1rem;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .status-connected {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            box-shadow: 0 0 20px rgba(16, 185, 129, 0.3);
+        }
+
+        .status-waiting {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            box-shadow: 0 0 20px rgba(245, 158, 11, 0.3);
+        }
+
+        .status-error {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            box-shadow: 0 0 20px rgba(239, 68, 68, 0.3);
+        }
+
+        .chat-container {
+            height: 60vh;
+            min-height: 500px;
+        }
+
+        #chat-messages {
+            background: linear-gradient(145deg, #2d3748 0%, #1a202c 100%);
+            border-radius: 0.75rem;
+        }
+
         #chat-messages::-webkit-scrollbar {
             width: 6px;
         }
+
         #chat-messages::-webkit-scrollbar-track {
-            background: #2d3748;
-        }
-        #chat-messages::-webkit-scrollbar-thumb {
-            background: #4a5568;
+            background: rgba(255, 255, 255, 0.1);
             border-radius: 3px;
         }
-        #chat-messages::-webkit-scrollbar-thumb:hover {
-            background: #718096;
+
+        #chat-messages::-webkit-scrollbar-thumb {
+            background: var(--gradient-primary);
+            border-radius: 3px;
         }
-        .modal-backdrop {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background-color: rgba(0,0,0,0.6);
-            display: flex; justify-content: center; align-items: center; z-index: 100;
+
+        .message-bubble {
+            border-radius: 1rem;
+            padding: 0.75rem 1rem;
+            margin-bottom: 0.75rem;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            position: relative;
+            backdrop-filter: blur(10px);
         }
-        .modal-content {
-            background-color: #2d3748; padding: 2rem; border-radius: 0.5rem;
-            text-align: center; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-            max-width: 90%; width: 500px;
-        }
-        .modal-close-btn {
-            margin-top: 1.5rem; background-color: #4a5568; padding: 0.5rem 1rem;
-            border-radius: 0.375rem; cursor: pointer;
-        }
-        .tool-btn.active {
-            background-color: #4fd1c5;
+
+        .message-bubble.own {
+            background: var(--gradient-tertiary);
             color: #1a202c;
+            margin-left: 2rem;
         }
-        button:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
+
+        .message-bubble.other {
+            background: rgba(255, 255, 255, 0.1);
+            color: #ffffff;
+            margin-right: 2rem;
         }
-        .canvas-container {
-            width: 100%;
-            aspect-ratio: 16 / 9;
-            max-height: 70vh;
+
+        .message-bubble.system {
+            background: rgba(107, 114, 128, 0.3);
+            color: #d1d5db;
+            text-align: center;
+            font-style: italic;
+            margin: 0.5rem 1rem;
         }
-        .user-bubble.is-host {
+
+        .user-badge {
+            background: var(--gradient-primary);
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 9999px;
+            font-weight: 600;
+            font-size: 0.875rem;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .user-badge.host {
+            background: var(--gradient-secondary);
             cursor: pointer;
+        }
+
+        .user-badge:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-primary);
+        }
+
+        .input-modern {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 0.75rem;
+            color: white;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .input-modern:focus {
+            background: rgba(255, 255, 255, 0.15);
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+            outline: none;
+        }
+
+        .btn-primary {
+            background: var(--gradient-primary);
+            color: white;
+            border: none;
+            border-radius: 0.75rem;
+            font-weight: 600;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: var(--shadow-primary);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-elevated);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 0.75rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+        }
+
+        .modal-backdrop {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+
+        .modal-content {
+            background: var(--gradient-card);
+            padding: 2rem;
+            border-radius: 1rem;
+            text-align: center;
+            box-shadow: var(--shadow-elevated);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            max-width: 90%;
+            width: 500px;
+        }
+
+        .section-title {
+            color: #e2e8f0;
+            font-weight: 600;
+            font-size: 1.1rem;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .control-group {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 0.75rem;
+            padding: 1rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .fullscreen-overlay {
+            background: var(--gradient-dark);
+        }
+
+        .floating-toolbar {
+            background: var(--gradient-card);
+            border-radius: 1rem;
+            padding: 1rem;
+            box-shadow: var(--shadow-elevated);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(20px);
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .pulse {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+
+        .range-slider {
+            appearance: none;
+            background: rgba(255, 255, 255, 0.2);
+            height: 6px;
+            border-radius: 3px;
+            outline: none;
+        }
+
+        .range-slider::-webkit-slider-thumb {
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: var(--gradient-tertiary);
+            cursor: pointer;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .color-picker {
+            appearance: none;
+            border: none;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            transition: all 0.3s ease;
+        }
+
+        .color-picker:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        /* PDF Optimization */
+        @media print {
+            body {
+                background: white !important;
+                color: black !important;
+            }
+            .card, .glass {
+                background: white !important;
+                border: 1px solid #e5e7eb !important;
+                box-shadow: none !important;
+            }
+        }
+
+        /* Responsive Design */
+        @media (max-width: 1280px) {
+            .canvas-container {
+                aspect-ratio: 4 / 3;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .canvas-container {
+                aspect-ratio: 1 / 1;
+                min-height: 300px;
+            }
+            .chat-container {
+                height: 50vh;
+                min-height: 400px;
+            }
         }
     </style>
 </head>
-<body class="bg-gray-900 text-white flex flex-col h-screen">
+<body class="text-white">
 
     <!-- Header -->
-    <header class="bg-gray-800 shadow-md p-4 z-10 flex-shrink-0">
-        <div class="container mx-auto flex justify-between items-center">
-            <h1 class="text-2xl font-bold text-cyan-400">Collabra</h1>
-            <div id="connection-status" class="text-sm font-medium bg-red-500 text-white py-1 px-3 rounded-full transition-colors">
-                Status: Not Connected
+    <header class="relative overflow-hidden">
+        <div class="absolute inset-0 bg-gradient-to-r from-purple-600 via-blue-600 to-blue-700 opacity-90"></div>
+        <div class="relative z-10 container mx-auto px-6 py-6">
+            <div class="flex justify-between items-center">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 bg-white bg-opacity-20 rounded-lg flex items-center justify-center">
+                        <i class="fas fa-palette text-white text-xl"></i>
+                    </div>
+                    <h1 class="text-3xl font-bold text-white">Collabra</h1>
+                </div>
+                <div id="connection-status" class="status-indicator status-error">
+                    <i class="fas fa-circle mr-2"></i>
+                    <span>Not Connected</span>
+                </div>
             </div>
         </div>
     </header>
 
-    <!-- Main Content: Made scrollable on mobile -->
-    <main class="flex-grow flex flex-col md:flex-row container mx-auto p-4 gap-4 overflow-y-auto">
-
-        <!-- Left Side: Canvas and Controls -->
-        <div id="left-panel" class="flex flex-col w-full md:w-2/3 gap-4 order-last md:order-first">
-            <!-- Controls Section -->
-            <div class="bg-gray-800 p-4 rounded-lg shadow-lg space-y-4 flex-shrink-0">
-                <!-- Connection Controls -->
-                <div>
-                    <h2 class="text-lg font-semibold mb-3">Connection</h2>
-                     <div class="mt-2">
-                        <label for="share-link" class="text-sm font-medium text-gray-400">Share this Room Link to Invite Others (Max 5 Users)</label>
-                        <div class="flex items-center bg-gray-700 rounded-md mt-1">
-                            <input type="text" id="share-link" class="w-full bg-transparent p-2 border-none focus:ring-0" placeholder="Generating link..." readonly>
-                            <button id="copy-link-btn" class="bg-purple-500 hover:bg-purple-600 text-white font-bold py-2 px-4 rounded-r-md transition-colors" disabled>Copy Link</button>
-                        </div>
-                    </div>
-                </div>
-                <!-- Drawing Tools -->
-                <div id="main-tools-container">
-                    <h2 class="text-lg font-semibold mb-3">Tools</h2>
-                    <div class="grid grid-cols-3 md:grid-cols-5 gap-4 items-center">
-                        <div class="flex items-center gap-2">
-                            <label for="color-picker" class="text-sm font-medium text-gray-400">Color:</label>
-                            <input type="color" id="color-picker" value="#000000" class="w-10 h-10 rounded-md cursor-pointer">
-                        </div>
-                        <div class="flex flex-col gap-2 col-span-2 md:col-span-1">
-                            <label for="brush-size" class="text-sm font-medium text-gray-400">Size: <span id="brush-size-label">5</span>px</label>
-                            <input type="range" id="brush-size" min="1" max="50" value="5" class="w-full">
-                        </div>
-                        <button id="undo-btn" class="tool-btn bg-gray-600 hover:bg-gray-500 p-2 rounded-md transition-colors flex items-center justify-center">
-                           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v6h6"></path><path d="M21 12a9 9 0 0 0-14.65-6.65L3 9"></path></svg>
-                        </button>
-                        <button id="eraser-btn" class="tool-btn bg-gray-600 hover:bg-gray-500 p-2 rounded-md transition-colors">Eraser</button>
-                        <button id="clear-btn" class="bg-red-600 hover:bg-red-500 p-2 rounded-md transition-colors">Clear</button>
-                    </div>
-                </div>
-                 <!-- Voice Controls -->
-                <div id="voice-controls-container">
-                     <h2 class="text-lg font-semibold mb-3">Voice Chat</h2>
-                     <div class="flex gap-4">
-                        <button id="start-call-btn" class="tool-btn bg-green-600 hover:bg-green-500 p-2 rounded-md transition-colors flex-grow flex items-center justify-center gap-2">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
-                            Start Call
-                        </button>
-                        <button id="mute-btn" class="tool-btn bg-gray-600 hover:bg-gray-500 p-2 rounded-md transition-colors flex-grow flex items-center justify-center gap-2 hidden">
-                           <!-- Mute/Unmute Icon here -->
-                        </button>
-                        <button id="end-call-btn" class="tool-btn bg-red-600 hover:bg-red-500 p-2 rounded-md transition-colors flex-grow flex items-center justify-center gap-2 hidden">
-                           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7 2 2 0 0 1 1.72 2v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91"></path></svg>
-                           End Call
-                        </button>
-                     </div>
-                </div>
-            </div>
+    <!-- Main Content -->
+    <main class="container mx-auto px-6 py-8">
+        <div class="grid grid-cols-1 xl:grid-cols-3 gap-8">
             
-            <!-- Drawing Canvas -->
-            <div id="canvas-bg" class="bg-white rounded-lg shadow-lg flex-grow relative canvas-container p-2">
-                <canvas id="drawing-canvas"></canvas>
-                <button id="fullscreen-btn" class="absolute top-2 right-2 bg-gray-700 bg-opacity-50 hover:bg-opacity-75 text-white p-2 rounded-full transition-opacity">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path></svg>
-                </button>
-            </div>
-        </div>
+            <!-- Left Column: Canvas and Controls -->
+            <div class="xl:col-span-2 space-y-6">
+                
+                <!-- Connection Panel -->
+                <div class="card p-6">
+                    <div class="section-title">
+                        <i class="fas fa-link"></i>
+                        Room Connection
+                    </div>
+                    <div class="control-group">
+                        <label class="block text-sm font-medium text-gray-300 mb-2">
+                            Share this Room Link to Invite Others (Max 5 Users)
+                        </label>
+                        <div class="flex gap-3">
+                            <input type="text" id="share-link" 
+                                   class="input-modern flex-1 px-4 py-3" 
+                                   placeholder="Generating link..." readonly>
+                            <button id="copy-link-btn" 
+                                    class="btn-primary px-6 py-3 flex items-center gap-2" disabled>
+                                <i class="fas fa-copy"></i>
+                                Copy Link
+                            </button>
+                        </div>
+                    </div>
+                </div>
 
-        <!-- Right Side: Chat -->
-        <div id="right-panel" class="flex flex-col w-full md:w-1/3 bg-gray-800 rounded-lg shadow-lg overflow-hidden flex-shrink-0 order-first md:order-last h-[80vh] max-h-[600px] md:h-auto md:max-h-full">
-            <div class="p-4 border-b border-gray-700">
-                <h2 class="text-lg font-semibold mb-2">Users in Room</h2>
-                <div id="user-list" class="flex flex-wrap gap-2">
-                    <!-- User bubbles will be injected here -->
+                <!-- Drawing Tools -->
+                <div class="card p-6">
+                    <div class="section-title">
+                        <i class="fas fa-tools"></i>
+                        Drawing Tools
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <!-- Color Picker -->
+                        <div class="control-group text-center">
+                            <label class="block text-sm font-medium text-gray-300 mb-3">Color</label>
+                            <input type="color" id="color-picker" value="#000000" 
+                                   class="color-picker mx-auto">
+                        </div>
+                        
+                        <!-- Brush Size -->
+                        <div class="control-group">
+                            <label class="block text-sm font-medium text-gray-300 mb-2">
+                                Size: <span id="brush-size-label" class="font-semibold text-blue-300">5</span>px
+                            </label>
+                            <input type="range" id="brush-size" min="1" max="50" value="5" 
+                                   class="range-slider w-full">
+                        </div>
+                        
+                        <!-- Action Buttons -->
+                        <div class="control-group space-y-2">
+                            <button id="undo-btn" class="tool-btn btn-secondary w-full py-3 flex items-center justify-center gap-2">
+                                <i class="fas fa-undo"></i>
+                                Undo
+                            </button>
+                            <button id="eraser-btn" class="tool-btn btn-secondary w-full py-3 flex items-center justify-center gap-2">
+                                <i class="fas fa-eraser"></i>
+                                Eraser
+                            </button>
+                        </div>
+                        
+                        <div class="control-group">
+                            <button id="clear-btn" class="btn-primary w-full py-3 flex items-center justify-center gap-2" 
+                                    style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);">
+                                <i class="fas fa-trash"></i>
+                                Clear Canvas
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Voice Controls -->
+                <div class="card p-6">
+                    <div class="section-title">
+                        <i class="fas fa-microphone"></i>
+                        Voice Chat
+                    </div>
+                    <div class="control-group">
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <button id="start-call-btn" class="btn-primary py-3 flex items-center justify-center gap-2">
+                                <i class="fas fa-microphone"></i>
+                                Start Call
+                            </button>
+                            <button id="mute-btn" class="tool-btn btn-secondary py-3 items-center justify-center gap-2 hidden">
+                                <i class="fas fa-microphone-slash"></i>
+                                Mute
+                            </button>
+                            <button id="end-call-btn" class="tool-btn py-3 items-center justify-center gap-2 hidden"
+                                    style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);">
+                                <i class="fas fa-phone-slash"></i>
+                                End Call
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Drawing Canvas -->
+                <div class="canvas-container">
+                    <canvas id="drawing-canvas"></canvas>
+                    <button id="fullscreen-btn" 
+                            class="absolute top-4 right-4 bg-black bg-opacity-50 hover:bg-opacity-75 text-white p-3 rounded-full transition-all duration-300 hover:scale-110">
+                        <i class="fas fa-expand"></i>
+                    </button>
                 </div>
             </div>
-            <div id="chat-messages" class="flex-grow p-4 overflow-y-auto flex flex-col-reverse">
-                <div class="text-center text-gray-500 text-sm my-2">Welcome! Copy the link above to invite friends.</div>
-            </div>
-            <div class="p-4 border-t border-gray-700">
-                <div class="flex gap-2">
-                    <input type="file" id="file-input" class="hidden">
-                    <button id="attach-file-btn" class="bg-gray-600 hover:bg-gray-500 p-2 rounded-md">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
-                    </button>
-                    <input type="text" id="chat-input" placeholder="Type a message..." class="flex-grow bg-gray-700 p-2 rounded-md border border-gray-600 focus:ring-cyan-500 focus:border-cyan-500">
-                    <button id="send-chat-btn" class="bg-cyan-500 hover:bg-cyan-600 text-white font-bold p-2 rounded-md transition-colors flex-shrink-0">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
-                    </button>
+
+            <!-- Right Column: Chat -->
+            <div class="xl:col-span-1">
+                <div class="card chat-container flex flex-col">
+                    <!-- Users Section -->
+                    <div class="p-6 border-b border-gray-600">
+                        <div class="section-title">
+                            <i class="fas fa-users"></i>
+                            Users in Room
+                        </div>
+                        <div id="user-list" class="flex flex-wrap gap-2">
+                            <!-- User badges will be injected here -->
+                        </div>
+                    </div>
+                    
+                    <!-- Chat Messages -->
+                    <div id="chat-messages" class="flex-1 p-4 overflow-y-auto flex flex-col-reverse">
+                        <div class="message-bubble system">
+                            <i class="fas fa-info-circle mr-2"></i>
+                            Welcome! Copy the link above to invite friends.
+                        </div>
+                    </div>
+                    
+                    <!-- Chat Input -->
+                    <div class="p-6 border-t border-gray-600">
+                        <div class="flex gap-3">
+                            <input type="file" id="file-input" class="hidden">
+                            <button id="attach-file-btn" class="btn-secondary p-3">
+                                <i class="fas fa-paperclip"></i>
+                            </button>
+                            <input type="text" id="chat-input" 
+                                   placeholder="Type a message..." 
+                                   class="input-modern flex-1 px-4 py-3">
+                            <button id="send-chat-btn" class="btn-primary px-6 py-3">
+                                <i class="fas fa-paper-plane"></i>
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
     </main>
     
     <!-- Fullscreen Overlay -->
-    <div id="fullscreen-overlay" class="fixed inset-0 bg-gray-800 z-50 hidden flex-col items-center justify-center">
-        <div id="fullscreen-canvas-container" class="w-full h-full p-4"></div>
-        <div id="fullscreen-tools" class="absolute bottom-4 bg-gray-700 bg-opacity-80 p-3 rounded-xl shadow-lg flex items-center gap-4">
+    <div id="fullscreen-overlay" class="fixed inset-0 fullscreen-overlay z-50 hidden flex-col items-center justify-center">
+        <div id="fullscreen-canvas-container" class="w-full h-full p-8 flex items-center justify-center">
+            <!-- Canvas will be moved here -->
+        </div>
+        <div id="fullscreen-tools" class="absolute bottom-8 floating-toolbar flex items-center gap-4">
             <!-- Tools will be moved here -->
+            <button id="exit-fullscreen-btn" class="tool-btn btn-secondary px-4 py-2 flex items-center gap-2">
+                <i class="fas fa-compress"></i>
+                Exit Fullscreen
+            </button>
         </div>
     </div>
 
     <!-- Modal for custom alerts -->
     <div id="custom-alert" class="modal-backdrop hidden">
         <div class="modal-content">
-            <p id="alert-message"></p>
-            <button id="alert-close-btn" class="modal-close-btn">Close</button>
+            <div class="text-center mb-6">
+                <i class="fas fa-exclamation-triangle text-4xl text-yellow-400 mb-4"></i>
+                <p id="alert-message" class="text-lg"></p>
+            </div>
+            <button id="alert-close-btn" class="btn-primary px-8 py-3">Close</button>
         </div>
     </div>
     
     <!-- Modal for Clear Canvas confirmation -->
     <div id="clear-confirm-modal" class="modal-backdrop hidden">
         <div class="modal-content">
-            <p id="clear-confirm-message">Are you sure you want to clear the canvas for everyone?</p>
-            <div class="mt-6 flex justify-center gap-4">
-                 <button id="clear-cancel-btn" class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-6 rounded-md transition-colors">Cancel</button>
-                 <button id="clear-confirm-btn" class="bg-red-600 hover:bg-red-500 text-white font-bold py-2 px-6 rounded-md transition-colors">Clear</button>
+            <div class="text-center mb-6">
+                <i class="fas fa-trash text-4xl text-red-400 mb-4"></i>
+                <p id="clear-confirm-message" class="text-lg">Are you sure you want to clear the canvas for everyone?</p>
+            </div>
+            <div class="flex justify-center gap-4">
+                <button id="clear-cancel-btn" class="btn-secondary px-6 py-3">Cancel</button>
+                <button id="clear-confirm-btn" class="btn-primary px-6 py-3" 
+                        style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);">
+                    Clear Canvas
+                </button>
             </div>
         </div>
     </div>
@@ -202,7 +608,7 @@
     <!-- Hidden container for audio elements -->
     <div id="audio-container"></div>
 
-    <!-- Firebase SDK -->
+    <!-- Firebase SDK and Main JavaScript -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getFirestore, doc, getDoc, setDoc, deleteDoc, collection, onSnapshot, updateDoc, arrayUnion, arrayRemove } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
@@ -223,7 +629,6 @@
         const copyLinkBtn = document.getElementById('copy-link-btn');
         const connectionStatusDiv = document.getElementById('connection-status');
         const canvas = document.getElementById('drawing-canvas');
-        const canvasBg = document.getElementById('canvas-bg');
         const chatMessagesDiv = document.getElementById('chat-messages');
         const chatInput = document.getElementById('chat-input');
         const sendChatBtn = document.getElementById('send-chat-btn');
@@ -247,9 +652,6 @@
         const fullscreenOverlay = document.getElementById('fullscreen-overlay');
         const fullscreenCanvasContainer = document.getElementById('fullscreen-canvas-container');
         const fullscreenTools = document.getElementById('fullscreen-tools');
-        const mainToolsContainer = document.getElementById('main-tools-container');
-        const leftPanel = document.getElementById('left-panel');
-        const rightPanel = document.getElementById('right-panel');
         const startCallBtn = document.getElementById('start-call-btn');
         const muteBtn = document.getElementById('mute-btn');
         const endCallBtn = document.getElementById('end-call-btn');
@@ -305,70 +707,84 @@
         };
 
         const addChatMessage = (message, sender, type = 'user') => {
-            const bubbleContainer = document.createElement('div');
-            const isYou = sender === 'You';
+            const messageDiv = document.createElement('div');
+            
             if (type === 'system') {
-                bubbleContainer.className = 'w-full flex justify-center mb-2';
-                bubbleContainer.innerHTML = `<div class="text-gray-400 italic text-sm">${message}</div>`;
+                messageDiv.className = 'message-bubble system';
+                messageDiv.innerHTML = `<i class="fas fa-info-circle mr-2"></i>${message}`;
             } else {
-                const alignment = isYou ? 'justify-end' : 'justify-start';
-                bubbleContainer.className = `w-full flex ${alignment} mb-2`;
-                const bubbleColor = isYou ? 'bg-cyan-600' : 'bg-gray-600';
-                const senderName = `<div class="font-bold text-sm mb-1">${sender}</div>`;
+                const isYou = sender === 'You';
+                messageDiv.className = `message-bubble ${isYou ? 'own' : 'other'}`;
+                const senderName = `<div class="font-semibold text-xs mb-1 opacity-80">${sender}</div>`;
                 const messageContent = `<div class="message-content break-words">${message}</div>`;
-                bubbleContainer.innerHTML = `<div class="max-w-xs md:max-w-md p-3 rounded-lg ${bubbleColor}">${senderName}${messageContent}</div>`;
+                messageDiv.innerHTML = `${senderName}${messageContent}`;
             }
-            chatMessagesDiv.insertBefore(bubbleContainer, chatMessagesDiv.firstChild);
-            return bubbleContainer;
+            
+            chatMessagesDiv.insertBefore(messageDiv, chatMessagesDiv.firstChild);
+            return messageDiv;
         };
         
         const updateConnectionStatus = (status) => {
-            connectionStatusDiv.textContent = `Status: ${status}`;
-            const statusClasses = {'Connected': 'bg-green-500', 'Waiting for connection...': 'bg-yellow-500', 'Reconnecting...': 'bg-orange-500'};
-            connectionStatusDiv.className = `text-sm font-medium ${statusClasses[status] || 'bg-red-500'} text-white py-1 px-3 rounded-full transition-colors`;
+            const statusIcon = connectionStatusDiv.querySelector('i');
+            const statusText = connectionStatusDiv.querySelector('span');
+            
+            statusText.textContent = status;
+            connectionStatusDiv.className = 'status-indicator';
+            
+            switch(status) {
+                case 'Connected':
+                    connectionStatusDiv.classList.add('status-connected');
+                    statusIcon.className = 'fas fa-circle mr-2';
+                    break;
+                case 'Waiting for connection...':
+                    connectionStatusDiv.classList.add('status-waiting');
+                    statusIcon.className = 'fas fa-circle mr-2 pulse';
+                    break;
+                default:
+                    connectionStatusDiv.classList.add('status-error');
+                    statusIcon.className = 'fas fa-circle mr-2';
+            }
         };
         
         const updateUserList = () => {
             userListDiv.innerHTML = '';
-            const selfBubble = document.createElement('div');
-            selfBubble.className = 'bg-cyan-600 text-white text-sm font-semibold px-3 py-1 rounded-full';
-            selfBubble.textContent = myPeerId.split('-')[0] + ' (You)';
-            userListDiv.appendChild(selfBubble);
+            
+            // Add self
+            const selfBadge = document.createElement('div');
+            selfBadge.className = 'user-badge';
+            selfBadge.innerHTML = `<i class="fas fa-crown mr-2"></i>${myPeerId.split('-')[0]} (You)`;
+            userListDiv.appendChild(selfBadge);
 
+            // Add other users
             for(const peerId in userDisplayList) {
-                const peerBubble = document.createElement('div');
-                peerBubble.className = 'bg-gray-600 text-white text-sm font-semibold px-3 py-1 rounded-full flex items-center gap-1';
-                peerBubble.textContent = peerId.split('-')[0];
-
+                const peerBadge = document.createElement('div');
+                peerBadge.className = `user-badge ${isHost ? 'host' : ''}`;
+                
+                let badgeContent = `<i class="fas fa-user mr-2"></i>${peerId.split('-')[0]}`;
+                
+                if (remoteMuteStates[peerId]) {
+                    badgeContent += `<i class="fas fa-microphone-slash ml-2"></i>`;
+                }
+                
+                peerBadge.innerHTML = badgeContent;
+                
                 if (isHost) {
-                    peerBubble.classList.add('cursor-pointer', 'hover:bg-gray-500');
-                    peerBubble.onclick = () => {
+                    peerBadge.onclick = () => {
                         remoteMuteStates[peerId] = !remoteMuteStates[peerId];
                         broadcast({ type: 'remote-mute', target: peerId, muted: remoteMuteStates[peerId] });
                         updateUserList();
                     };
                 }
                 
-                if (remoteMuteStates[peerId]) {
-                    const muteIcon = document.createElement('span');
-                    muteIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="1" y1="1" x2="23" y2="23"></line><path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"></path><path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>`;
-                    peerBubble.appendChild(muteIcon);
-                }
-
-                userListDiv.appendChild(peerBubble);
+                userListDiv.appendChild(peerBadge);
             }
         };
         
-        // --- THEME LOGIC ---
         const updateTheme = () => {
             const isDarkMode = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
             if (isDarkMode) {
-                canvasBg.classList.remove('bg-black');
-                canvasBg.classList.add('bg-white'); // White frame
                 colorPicker.value = '#FFFFFF';
             } else {
-                canvasBg.classList.remove('bg-white');
-                canvasBg.classList.add('bg-black'); // Black frame
                 colorPicker.value = '#000000';
             }
             currentColor = colorPicker.value;
@@ -379,14 +795,13 @@
         };
 
         const getCanvasBgColor = () => {
-            return window.matchMedia('(prefers-color-scheme: dark)').matches ? '#111827' : '#FFFFFF';
+            return '#FFFFFF';
         }
 
         const drawCanvasBackground = () => {
             ctx.fillStyle = getCanvasBgColor();
             ctx.fillRect(0, 0, canvas.width, canvas.height);
         };
-
 
         // --- CANVAS LOGIC ---
         const applyCanvasStyles = () => {
@@ -401,15 +816,18 @@
             const tempCtx = tempCanvas.getContext('2d');
             const oldWidth = canvas.width;
             const oldHeight = canvas.height;
+            
             if (oldWidth > 0 && oldHeight > 0) {
                 tempCanvas.width = oldWidth;
                 tempCanvas.height = oldHeight;
                 tempCtx.drawImage(canvas, 0, 0);
             }
+            
             canvas.width = parent.clientWidth;
             canvas.height = parent.clientHeight;
             applyCanvasStyles(); 
             drawCanvasBackground();
+            
             if (oldWidth > 0 && oldHeight > 0) {
                 ctx.drawImage(tempCanvas, 0, 0, oldWidth, oldHeight, 0, 0, canvas.width, canvas.height);
             }
@@ -423,7 +841,7 @@
         
         const saveHistory = () => {
             if (drawingHistory.length > HISTORY_LIMIT) {
-                drawingHistory.shift(); // Remove the oldest state
+                drawingHistory.shift();
             }
             drawingHistory.push(ctx.getImageData(0, 0, canvas.width, canvas.height));
         };
@@ -440,7 +858,7 @@
 
         const startDrawing = (e) => {
             e.preventDefault();
-            saveHistory(); // Save state before drawing
+            saveHistory();
             drawing = true;
             const coords = getEventCoords(e);
             [lastX, lastY] = [coords.x, coords.y];
@@ -467,7 +885,16 @@
             e.preventDefault();
             const coords = getEventCoords(e);
             drawLine(lastX, lastY, coords.x, coords.y, currentColor, currentBrushSize);
-            const drawData = { type: 'draw', sender: myPeerId, x0: lastX / canvas.width, y0: lastY / canvas.height, x1: coords.x / canvas.width, y1: coords.y / canvas.height, color: currentColor, size: currentBrushSize };
+            const drawData = { 
+                type: 'draw', 
+                sender: myPeerId, 
+                x0: lastX / canvas.width, 
+                y0: lastY / canvas.height, 
+                x1: coords.x / canvas.width, 
+                y1: coords.y / canvas.height, 
+                color: currentColor, 
+                size: currentBrushSize 
+            };
             if (isHost) {
                 broadcast(drawData, myPeerId);
             } else if (connections[roomId]) {
@@ -499,7 +926,8 @@
             }
             const fileId = `${Date.now()}-${file.name}`;
             const metadata = { type: 'file-meta', name: file.name, size: file.size, fileId: fileId, mimeType: file.type, sender: myPeerId };
-            addChatMessage(`Sending ${file.name}... <progress id="progress-${fileId}" value="0" max="${file.size}" class="w-full"></progress>`, 'You');
+            addChatMessage(`<i class="fas fa-file mr-2"></i>Sending ${file.name}... <progress id="progress-${fileId}" value="0" max="${file.size}" class="w-full mt-2 rounded-full"></progress>`, 'You');
+            
             if (isHost) broadcast(metadata);
             else if (connections[roomId]) connections[roomId].send(metadata);
 
@@ -579,11 +1007,18 @@
 
             conn.on('data', (data) => {
                 if(isHost && data.sender !== myPeerId) {
-                    broadcast(data, conn.peer); // Host relays data to all other clients
+                    broadcast(data, conn.peer);
                 }
 
                 if (data.type === 'file-meta') {
-                    fileChunks[data.fileId] = { chunks: [], name: data.name, size: data.size, mimeType: data.mimeType, receivedSize: 0, msgElement: addChatMessage(`Receiving ${data.name}... <progress id="progress-${data.fileId}" value="0" max="${data.size}" class="w-full"></progress>`, data.sender.split('-')[0]) };
+                    fileChunks[data.fileId] = { 
+                        chunks: [], 
+                        name: data.name, 
+                        size: data.size, 
+                        mimeType: data.mimeType, 
+                        receivedSize: 0, 
+                        msgElement: addChatMessage(`<i class="fas fa-download mr-2"></i>Receiving ${data.name}... <progress id="progress-${data.fileId}" value="0" max="${data.size}" class="w-full mt-2 rounded-full"></progress>`, data.sender.split('-')[0]) 
+                    };
                 } else if (data.type === 'file-chunk') {
                     const fileData = fileChunks[data.fileId];
                     if (!fileData) return;
@@ -596,22 +1031,22 @@
                         const fileBlob = new Blob(fileData.chunks, { type: fileData.mimeType });
                         const url = URL.createObjectURL(fileBlob);
                         const actionsContainer = document.createElement('div');
-                        actionsContainer.className = 'flex items-center gap-2 mt-1';
+                        actionsContainer.className = 'flex items-center gap-2 mt-3';
                         const openBtn = document.createElement('a');
-                        openBtn.textContent = 'Open';
+                        openBtn.innerHTML = '<i class="fas fa-external-link-alt mr-1"></i>Open';
                         openBtn.href = url;
                         openBtn.target = '_blank';
-                        openBtn.className = 'bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold py-1 px-2 rounded no-underline';
+                        openBtn.className = 'btn-primary text-xs px-3 py-1 rounded-full no-underline';
                         const downloadLink = document.createElement('a');
                         downloadLink.href = url;
                         downloadLink.download = fileData.name;
-                        downloadLink.textContent = `Download`;
-                        downloadLink.className = "text-blue-400 underline";
+                        downloadLink.innerHTML = '<i class="fas fa-download mr-1"></i>Download';
+                        downloadLink.className = "btn-secondary text-xs px-3 py-1 rounded-full no-underline";
                         actionsContainer.appendChild(openBtn);
                         actionsContainer.appendChild(downloadLink);
                         const messageContentDiv = fileData.msgElement.querySelector('.message-content');
                         if (messageContentDiv) {
-                            messageContentDiv.innerHTML = `Received: ${fileData.name}`;
+                            messageContentDiv.innerHTML = `<i class="fas fa-file mr-2"></i>Received: ${fileData.name}`;
                             messageContentDiv.appendChild(actionsContainer);
                         }
                         delete fileChunks[data.fileId];
@@ -625,7 +1060,8 @@
                     clearCanvas();
                 } else if (data.type === 'undo') {
                     undoLastAction(false);
-                } else if (data.type === 'user-list-update') {
+                }
+                else if (data.type === 'user-list-update') {
                     userDisplayList = {};
                     data.users.forEach(userId => {
                         if (userId !== myPeerId) {
@@ -700,17 +1136,14 @@
 
             fullscreenOverlay.classList.remove('hidden');
             fullscreenOverlay.classList.add('flex');
-            fullscreenCanvasContainer.appendChild(canvasBg);
             
-            const toolsToMove = [colorPicker.parentElement, undoBtn, eraserBtn, clearBtn];
-            toolsToMove.forEach(tool => fullscreenTools.appendChild(tool));
+            // Move canvas container to fullscreen
+            const canvasContainer = canvas.parentElement;
+            fullscreenCanvasContainer.appendChild(canvasContainer);
             
-            const exitBtn = document.createElement('button');
-            exitBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"/></svg>`;
-            exitBtn.className = 'tool-btn bg-red-600 hover:bg-red-500 p-2 rounded-md transition-colors';
-            exitBtn.id = 'exit-fullscreen-btn';
+            // Create exit button
+            const exitBtn = document.getElementById('exit-fullscreen-btn');
             exitBtn.onclick = exitFullscreen;
-            fullscreenTools.appendChild(exitBtn);
 
             resizeCanvas();
         };
@@ -721,22 +1154,10 @@
             fullscreenOverlay.classList.add('hidden');
             fullscreenOverlay.classList.remove('flex');
             
-            leftPanel.appendChild(canvasBg);
-            
-            const toolsParentGrid = mainToolsContainer.querySelector('.grid');
-            
-            const colorContainer = fullscreenTools.querySelector('.flex.items-center.gap-2');
-            const undoButton = fullscreenTools.querySelector('#undo-btn');
-            const eraserButton = fullscreenTools.querySelector('#eraser-btn');
-            const clearButton = fullscreenTools.querySelector('#clear-btn');
-
-            // Restore tools to their original parent
-            toolsParentGrid.insertBefore(colorContainer, brushSizeSlider.parentElement.nextSibling);
-            toolsParentGrid.appendChild(undoButton);
-            toolsParentGrid.appendChild(eraserButton);
-            toolsParentGrid.appendChild(clearButton);
-            
-            fullscreenTools.innerHTML = ''; // Clean up the entire toolbar
+            // Move canvas back to original location
+            const canvasContainer = canvas.parentElement;
+            const originalParent = document.querySelector('.xl\\:col-span-2');
+            originalParent.appendChild(canvasContainer);
 
             resizeCanvas();
         };
@@ -744,7 +1165,7 @@
         // --- MAIN APP INITIALIZATION ---
         const main = async () => {
             resizeCanvas();
-            updateTheme(); // Set initial theme
+            updateTheme();
             const db = await initializeFirebase();
             if (!db) return;
 
@@ -846,8 +1267,11 @@
         copyLinkBtn.addEventListener('click', () => {
             shareLinkInput.select();
             document.execCommand('copy');
-            copyLinkBtn.textContent = 'Copied!';
-            setTimeout(() => { copyLinkBtn.textContent = 'Copy Link'; }, 2000);
+            const originalText = copyLinkBtn.innerHTML;
+            copyLinkBtn.innerHTML = '<i class="fas fa-check mr-2"></i>Copied!';
+            setTimeout(() => { 
+                copyLinkBtn.innerHTML = originalText; 
+            }, 2000);
         });
 
         attachFileBtn.addEventListener('click', () => fileInput.click());
@@ -888,7 +1312,6 @@
                 endCallBtn.classList.remove('hidden');
                 updateMuteButton();
 
-                // Call existing peers
                 Object.keys(connections).forEach(peerId => {
                     console.log(`Calling existing peer ${peerId}`);
                     const call = peer.call(peerId, localStream);
@@ -906,13 +1329,13 @@
 
         const updateMuteButton = () => {
             if (isMuted) {
-                muteBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5L6 9H2v6h4l5 4V5z"></path><line x1="23" y1="9" x2="17" y2="15"></line><line x1="17" y1="9" x2="23" y2="15"></line></svg> Unmute`;
-                muteBtn.classList.add('bg-red-600', 'hover:bg-red-500');
-                muteBtn.classList.remove('bg-gray-600', 'hover:bg-gray-500');
+                muteBtn.innerHTML = '<i class="fas fa-microphone-slash mr-2"></i>Unmute';
+                muteBtn.classList.add('bg-red-500', 'hover:bg-red-600');
+                muteBtn.classList.remove('btn-secondary');
             } else {
-                muteBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg> Mute`;
-                muteBtn.classList.remove('bg-red-600', 'hover:bg-red-500');
-                muteBtn.classList.add('bg-gray-600', 'hover:bg-gray-500');
+                muteBtn.innerHTML = '<i class="fas fa-microphone mr-2"></i>Mute';
+                muteBtn.classList.remove('bg-red-500', 'hover:bg-red-600');
+                muteBtn.classList.add('btn-secondary');
             }
         };
 
