@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -14,6 +15,7 @@
         body {
             font-family: 'Inter', sans-serif;
         }
+
         #drawing-canvas {
             cursor: crosshair;
             touch-action: none;
@@ -21,57 +23,84 @@
             width: 100%;
             height: 100%;
         }
+
         #chat-messages::-webkit-scrollbar {
             width: 6px;
         }
+
         #chat-messages::-webkit-scrollbar-track {
             background: #2d3748;
         }
+
         #chat-messages::-webkit-scrollbar-thumb {
             background: #4a5568;
             border-radius: 3px;
         }
+
         #chat-messages::-webkit-scrollbar-thumb:hover {
             background: #718096;
         }
+
         .modal-backdrop {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background-color: rgba(0,0,0,0.6);
-            display: flex; justify-content: center; align-items: center; z-index: 1000;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.6);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
         }
+
         .modal-content {
-            background-color: #2d3748; padding: 2rem; border-radius: 0.5rem;
-            text-align: center; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-            max-width: 90%; width: 500px;
+            background-color: #2d3748;
+            padding: 2rem;
+            border-radius: 0.5rem;
+            text-align: center;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            max-width: 90%;
+            width: 500px;
         }
+
         .modal-close-btn {
-            margin-top: 1.5rem; background-color: #4a5568; padding: 0.5rem 1rem;
-            border-radius: 0.375rem; cursor: pointer;
+            margin-top: 1.5rem;
+            background-color: #4a5568;
+            padding: 0.5rem 1rem;
+            border-radius: 0.375rem;
+            cursor: pointer;
         }
+
         .tool-btn.active {
             background-color: #4fd1c5;
             color: #1a202c;
         }
+
         button:disabled {
             opacity: 0.5;
             cursor: not-allowed;
         }
+
         .canvas-container {
             width: 100%;
             aspect-ratio: 16 / 9;
             max-height: 70vh;
         }
+
         .user-bubble.is-host {
             cursor: pointer;
         }
     </style>
 </head>
+
 <body class="bg-gray-900 text-white flex flex-col h-screen">
 
     <header class="bg-gray-800 shadow-md p-4 z-10 flex-shrink-0">
         <div class="w-full max-w-7xl mx-auto flex justify-between items-center">
             <h1 class="text-2xl font-bold text-cyan-400">Collabra</h1>
-            <div id="connection-status" class="text-sm font-medium bg-red-500 text-white py-1 px-3 rounded-full transition-colors">
+            <div id="connection-status"
+                class="text-sm font-medium bg-red-500 text-white py-1 px-3 rounded-full transition-colors">
                 Status: Not Connected
             </div>
         </div>
@@ -83,85 +112,136 @@
             <div class="bg-gray-800 p-4 rounded-lg shadow-lg space-y-4 flex-shrink-0">
                 <div>
                     <h2 class="text-lg font-semibold mb-3">Connection</h2>
-                     <div class="mt-2">
-                         <label for="share-link" class="text-sm font-medium text-gray-400">Share this Room Link to Invite Others (Max 5 Users)</label>
-                         <div class="flex items-center bg-gray-700 rounded-md mt-1">
-                             <input type="text" id="share-link" class="w-full bg-transparent p-2 border-none focus:ring-0" placeholder="Generating link..." readonly>
-                             <button id="copy-link-btn" class="bg-purple-500 hover:bg-purple-600 text-white font-bold py-2 px-4 rounded-r-md transition-colors" disabled>Copy Link</button>
-                         </div>
-                     </div>
+                    <div class="mt-2">
+                        <label for="share-link" class="text-sm font-medium text-gray-400">Share this Room Link to Invite
+                            Others (Max 5 Users)</label>
+                        <div class="flex items-center bg-gray-700 rounded-md mt-1">
+                            <input type="text" id="share-link"
+                                class="w-full bg-transparent p-2 border-none focus:ring-0"
+                                placeholder="Generating link..." readonly>
+                            <button id="copy-link-btn"
+                                class="bg-purple-500 hover:bg-purple-600 text-white font-bold py-2 px-4 rounded-r-md transition-colors"
+                                disabled>Copy Link</button>
+                        </div>
+                    </div>
                 </div>
                 <div id="main-tools-container">
                     <h2 class="text-lg font-semibold mb-3">Tools</h2>
                     <div class="grid grid-cols-3 md:grid-cols-5 gap-4 items-center">
                         <div class="flex items-center gap-2">
                             <label for="color-picker" class="text-sm font-medium text-gray-400">Color:</label>
-                            <input type="color" id="color-picker" value="#FFFFFF" class="w-10 h-10 rounded-md cursor-pointer">
+                            <input type="color" id="color-picker" value="#FFFFFF"
+                                class="w-10 h-10 rounded-md cursor-pointer">
                         </div>
                         <div class="flex flex-col gap-2 col-span-2 md:col-span-1">
-                            <label for="brush-size" class="text-sm font-medium text-gray-400">Size: <span id="brush-size-label">5</span>px</label>
+                            <label for="brush-size" class="text-sm font-medium text-gray-400">Size: <span
+                                    id="brush-size-label">5</span>px</label>
                             <input type="range" id="brush-size" min="1" max="50" value="5" class="w-full">
                         </div>
-                        <button id="undo-btn" class="tool-btn bg-gray-600 hover:bg-gray-500 p-2 rounded-md transition-colors flex items-center justify-center">
-                           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v6h6"></path><path d="M21 12a9 9 0 0 0-14.65-6.65L3 9"></path></svg>
+                        <button id="undo-btn"
+                            class="tool-btn bg-gray-600 hover:bg-gray-500 p-2 rounded-md transition-colors flex items-center justify-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round">
+                                <path d="M3 3v6h6"></path>
+                                <path d="M21 12a9 9 0 0 0-14.65-6.65L3 9"></path>
+                            </svg>
                         </button>
-                        <button id="eraser-btn" class="tool-btn bg-gray-600 hover:bg-gray-500 p-2 rounded-md transition-colors">Eraser</button>
-                        <button id="clear-btn" class="bg-red-600 hover:bg-red-500 p-2 rounded-md transition-colors">Clear</button>
+                        <button id="eraser-btn"
+                            class="tool-btn bg-gray-600 hover:bg-gray-500 p-2 rounded-md transition-colors">Eraser</button>
+                        <button id="clear-btn"
+                            class="bg-red-600 hover:bg-red-500 p-2 rounded-md transition-colors">Clear</button>
                     </div>
                 </div>
-                 <div id="voice-controls-container">
-                     <h2 class="text-lg font-semibold mb-3">Voice Chat</h2>
-                     <div class="flex gap-4">
-                         <button id="start-call-btn" class="tool-btn bg-green-600 hover:bg-green-500 p-2 rounded-md transition-colors flex-grow flex items-center justify-center gap-2">
-                             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
-                             Start Call
-                         </button>
-                         <button id="mute-btn" class="tool-btn bg-gray-600 hover:bg-gray-500 p-2 rounded-md transition-colors flex-grow flex items-center justify-center gap-2 hidden">
-                             </button>
-                         <button id="end-call-btn" class="tool-btn bg-red-600 hover:bg-red-500 p-2 rounded-md transition-colors flex-grow flex items-center justify-center gap-2 hidden">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7 2 2 0 0 1 1.72 2v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91"></path></svg>
-                             End Call
-                         </button>
-                     </div>
+                <div id="voice-controls-container">
+                    <h2 class="text-lg font-semibold mb-3">Voice Chat</h2>
+                    <div class="flex gap-4">
+                        <button id="start-call-btn"
+                            class="tool-btn bg-green-600 hover:bg-green-500 p-2 rounded-md transition-colors flex-grow flex items-center justify-center gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round">
+                                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+                                <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                                <line x1="12" y1="19" x2="12" y2="23"></line>
+                                <line x1="8" y1="23" x2="16" y2="23"></line>
+                            </svg>
+                            Start Call
+                        </button>
+                        <button id="mute-btn"
+                            class="tool-btn bg-gray-600 hover:bg-gray-500 p-2 rounded-md transition-colors flex-grow flex items-center justify-center gap-2 hidden">
+                        </button>
+                        <button id="end-call-btn"
+                            class="tool-btn bg-red-600 hover:bg-red-500 p-2 rounded-md transition-colors flex-grow flex items-center justify-center gap-2 hidden">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round">
+                                <path
+                                    d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7 2 2 0 0 1 1.72 2v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91">
+                                </path>
+                            </svg>
+                            End Call
+                        </button>
+                    </div>
                 </div>
             </div>
-            
+
             <div id="canvas-bg" class="bg-gray-800 rounded-lg shadow-lg flex-grow relative canvas-container p-2">
                 <canvas id="drawing-canvas"></canvas>
-                <button id="fullscreen-btn" class="absolute top-4 right-4 bg-gray-700 bg-opacity-50 hover:bg-opacity-75 text-white p-2 rounded-full transition-opacity">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path></svg>
+                <button id="fullscreen-btn"
+                    class="absolute top-4 right-4 bg-gray-700 bg-opacity-50 hover:bg-opacity-75 text-white p-2 rounded-full transition-opacity">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path
+                            d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3">
+                        </path>
+                    </svg>
                 </button>
             </div>
         </div>
 
-        <div id="right-panel" class="flex flex-col w-full xl:w-1/3 bg-gray-800 rounded-lg shadow-lg overflow-hidden flex-shrink-0 order-first xl:order-last h-[80vh] max-h-[600px] xl:h-auto xl:max-h-full">
+        <div id="right-panel"
+            class="flex flex-col w-full xl:w-1/3 bg-gray-800 rounded-lg shadow-lg overflow-hidden flex-shrink-0 order-first xl:order-last h-[80vh] max-h-[600px] xl:h-auto xl:max-h-full">
             <div class="p-4 border-b border-gray-700">
                 <h2 class="text-lg font-semibold mb-2">Users in Room</h2>
                 <div id="user-list" class="flex flex-wrap gap-2">
-                    </div>
+                </div>
             </div>
             <div id="chat-messages" class="flex-grow p-4 overflow-y-auto flex flex-col-reverse">
-                <div class="text-center text-gray-500 text-sm my-2">Welcome! Copy the link above to invite friends.</div>
+                <div class="text-center text-gray-500 text-sm my-2">Welcome! Copy the link above to invite friends.
+                </div>
             </div>
             <div class="p-4 border-t border-gray-700">
                 <div class="flex gap-2">
                     <input type="file" id="file-input" class="hidden">
                     <button id="attach-file-btn" class="bg-gray-600 hover:bg-gray-500 p-2 rounded-md">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path
+                                d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48">
+                            </path>
+                        </svg>
                     </button>
-                    <input type="text" id="chat-input" placeholder="Type a message..." class="flex-grow bg-gray-700 p-2 rounded-md border border-gray-600 focus:ring-cyan-500 focus:border-cyan-500">
-                    <button id="send-chat-btn" class="bg-cyan-500 hover:bg-cyan-600 text-white font-bold p-2 rounded-md transition-colors flex-shrink-0">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                    <input type="text" id="chat-input" placeholder="Type a message..."
+                        class="flex-grow bg-gray-700 p-2 rounded-md border border-gray-600 focus:ring-cyan-500 focus:border-cyan-500">
+                    <button id="send-chat-btn"
+                        class="bg-cyan-500 hover:bg-cyan-600 text-white font-bold p-2 rounded-md transition-colors flex-shrink-0">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="22" y1="2" x2="11" y2="13"></line>
+                            <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                        </svg>
                     </button>
                 </div>
             </div>
         </div>
     </main>
-    
+
     <div id="fullscreen-overlay" class="fixed inset-0 bg-gray-900 z-50 hidden flex-col items-center justify-center">
         <div id="fullscreen-canvas-container" class="w-full h-full p-4 flex items-center justify-center"></div>
-        <div id="fullscreen-tools" class="absolute bottom-4 bg-gray-700 bg-opacity-80 p-3 rounded-xl shadow-lg flex items-center gap-4">
-            </div>
+        <div id="fullscreen-tools"
+            class="absolute bottom-4 bg-gray-700 bg-opacity-80 p-3 rounded-xl shadow-lg flex items-center gap-4">
+        </div>
     </div>
 
     <div id="custom-alert" class="modal-backdrop hidden">
@@ -170,13 +250,15 @@
             <button id="alert-close-btn" class="bg-gray-600 mt-4 px-4 py-2 rounded-md">Close</button>
         </div>
     </div>
-    
+
     <div id="clear-confirm-modal" class="modal-backdrop hidden">
         <div class="modal-content">
             <p id="clear-confirm-message">Are you sure you want to clear the canvas for everyone?</p>
             <div class="mt-6 flex justify-center gap-4">
-                 <button id="clear-cancel-btn" class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-6 rounded-md transition-colors">Cancel</button>
-                 <button id="clear-confirm-btn" class="bg-red-600 hover:bg-red-500 text-white font-bold py-2 px-6 rounded-md transition-colors">Clear</button>
+                <button id="clear-cancel-btn"
+                    class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-6 rounded-md transition-colors">Cancel</button>
+                <button id="clear-confirm-btn"
+                    class="bg-red-600 hover:bg-red-500 text-white font-bold py-2 px-6 rounded-md transition-colors">Clear</button>
             </div>
         </div>
     </div>
@@ -246,7 +328,7 @@
         let currentColor = '#FFFFFF', currentBrushSize = 5, isErasing = false;
         let savedColor = '#FFFFFF';
         const fileChunks = {};
-        let userDisplayList = {}; 
+        let userDisplayList = {};
         let drawingHistory = [];
         const HISTORY_LIMIT = 20;
         let localStream;
@@ -267,7 +349,7 @@
             customAlert.classList.remove('hidden');
         };
         alertCloseBtn.addEventListener('click', () => customAlert.classList.add('hidden'));
-        
+
         const generateFriendlyId = (prefix = '') => {
             const adjectives = ['purple', 'green', 'blue', 'red', 'happy', 'silly', 'clever', 'brave', 'fast', 'bright'];
             const nouns = ['cat', 'dog', 'fox', 'lion', 'bird', 'fish', 'tree', 'star', 'moon', 'sun'];
@@ -309,13 +391,13 @@
             chatMessagesDiv.insertBefore(bubbleContainer, chatMessagesDiv.firstChild);
             return bubbleContainer;
         };
-        
+
         const updateConnectionStatus = (status) => {
             connectionStatusDiv.textContent = `Status: ${status}`;
-            const statusClasses = {'Connected': 'bg-green-500', 'Waiting for connection...': 'bg-yellow-500', 'Reconnecting...': 'bg-orange-500'};
+            const statusClasses = { 'Connected': 'bg-green-500', 'Waiting for connection...': 'bg-yellow-500', 'Reconnecting...': 'bg-orange-500' };
             connectionStatusDiv.className = `text-sm font-medium ${statusClasses[status] || 'bg-red-500'} text-white py-1 px-3 rounded-full transition-colors`;
         };
-        
+
         const updateUserList = () => {
             userListDiv.innerHTML = '';
             const selfBubble = document.createElement('div');
@@ -323,7 +405,7 @@
             selfBubble.textContent = myPeerId.split('-')[0] + ' (You)';
             userListDiv.appendChild(selfBubble);
 
-            for(const peerId in userDisplayList) {
+            for (const peerId in userDisplayList) {
                 const peerBubble = document.createElement('div');
                 peerBubble.className = 'bg-gray-600 text-white text-sm font-semibold px-3 py-1 rounded-full flex items-center gap-1';
                 peerBubble.textContent = peerId.split('-')[0];
@@ -336,7 +418,7 @@
                         updateUserList();
                     };
                 }
-                
+
                 if (remoteMuteStates[peerId]) {
                     const muteIcon = document.createElement('span');
                     muteIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="1" y1="1" x2="23" y2="23"></line><path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"></path><path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>`;
@@ -346,7 +428,7 @@
                 userListDiv.appendChild(peerBubble);
             }
         };
-        
+
         // --- CANVAS BACKGROUND & THEME LOGIC ---
         const getCanvasBgColor = () => {
             return '#FFFFFF'; // Always use a white background for drawing
@@ -378,11 +460,11 @@
         const resizeCanvas = () => {
             const parent = canvas.parentElement;
             const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-            
+
             canvas.width = parent.clientWidth;
             canvas.height = parent.clientHeight;
-            
-            applyCanvasStyles(); 
+
+            applyCanvasStyles();
             drawCanvasBackground();
             ctx.putImageData(imageData, 0, 0);
         };
@@ -392,7 +474,7 @@
             const event = e.touches ? e.touches[0] : e;
             return { x: event.clientX - rect.left, y: event.clientY - rect.top };
         };
-        
+
         const saveHistory = () => {
             if (drawingHistory.length >= HISTORY_LIMIT) {
                 drawingHistory.shift();
@@ -447,7 +529,7 @@
             }
             [lastX, lastY] = [coords.x, coords.y];
         };
-        
+
         const drawLine = (x0, y0, x1, y1, color, size) => {
             ctx.beginPath();
             ctx.strokeStyle = color;
@@ -474,7 +556,7 @@
             const fileId = `${Date.now()}-${file.name}`;
             const metadata = { type: 'file-meta', name: file.name, size: file.size, fileId: fileId, mimeType: file.type, sender: myPeerId };
             addChatMessage(`${fileIconSvg}Sending ${file.name}... <progress id="progress-${fileId}" value="0" max="${file.size}" class="w-full mt-2 rounded-full"></progress>`, 'You');
-            
+
             if (isHost) broadcast(metadata);
             else if (connections[roomId]) connections[roomId].send(metadata);
 
@@ -485,10 +567,10 @@
                 if (!e.target.error) {
                     const chunkData = { type: 'file-chunk', fileId: fileId, data: e.target.result, sender: myPeerId };
                     if (isHost) broadcast(chunkData);
-                    else if(connections[roomId]) connections[roomId].send(chunkData);
+                    else if (connections[roomId]) connections[roomId].send(chunkData);
                     offset += e.target.result.byteLength;
                     const progress = document.getElementById(`progress-${fileId}`);
-                    if(progress) progress.value = offset;
+                    if (progress) progress.value = offset;
                     if (offset < file.size) readSlice(offset);
                 } else {
                     showAlert("Error reading file.");
@@ -531,7 +613,7 @@
             conn.on('open', () => {
                 console.log(`Data connection to ${conn.peer} is now open.`);
                 connections[conn.peer] = conn;
-                
+
                 if (isHost) {
                     userDisplayList[conn.peer] = {};
                     const userList = [myPeerId, ...Object.keys(userDisplayList)];
@@ -548,12 +630,12 @@
                     call.on('stream', (remoteStream) => {
                         addAudioStream(audio, remoteStream, call.peer);
                     });
-                     call.on('close', () => audio.remove());
+                    call.on('close', () => audio.remove());
                 }
             });
 
             conn.on('data', (data) => {
-                if(isHost && data.sender !== myPeerId) {
+                if (isHost && data.sender !== myPeerId) {
                     broadcast(data, conn.peer); // Host relays data to all other clients
                 }
 
@@ -565,7 +647,7 @@
                     fileData.chunks.push(data.data);
                     fileData.receivedSize += data.data.byteLength;
                     const progress = document.getElementById(`progress-${data.fileId}`);
-                    if(progress) progress.value = fileData.receivedSize;
+                    if (progress) progress.value = fileData.receivedSize;
 
                     if (fileData.receivedSize === fileData.size) {
                         const fileBlob = new Blob(fileData.chunks, { type: fileData.mimeType });
@@ -615,7 +697,7 @@
                     updateMuteButton();
                 } else if (data.type === 'hang-up') {
                     const audioEl = document.getElementById(`audio-${data.sender}`);
-                    if(audioEl) audioEl.remove();
+                    if (audioEl) audioEl.remove();
                 }
             });
 
@@ -625,12 +707,12 @@
                 delete connections[conn.peer];
                 delete userDisplayList[conn.peer];
                 if (isHost) {
-                     broadcast({ type: 'user-list-update', users: [myPeerId, ...Object.keys(userDisplayList)] });
+                    broadcast({ type: 'user-list-update', users: [myPeerId, ...Object.keys(userDisplayList)] });
                 }
-                if(Object.keys(connections).length === 0 && !isHost) updateConnectionStatus('Disconnected');
+                if (Object.keys(connections).length === 0 && !isHost) updateConnectionStatus('Disconnected');
                 updateUserList();
             });
-            
+
             conn.on('error', (err) => {
                 console.error(`Connection error with ${conn.peer}:`, err);
                 showAlert(`Could not connect to ${conn.peer}.`);
@@ -638,18 +720,41 @@
         };
 
         const connectToHost = async (db, hostId) => {
-             if (!peer || peer.disconnected) {
+            if (!peer || peer.disconnected) {
                 showAlert("Not connected to the service. Please refresh.");
                 return;
             }
             if (!hostId || hostId === myPeerId) return;
 
+            // --- NEW CODE (Correct) ---
             const roomDocRef = doc(db, "rooms", hostId);
-            const roomDoc = await getDoc(roomDocRef);
-            if (!roomDoc.exists()) {
-                showAlert("This Room ID does not exist. Please check the ID or link.");
-                return;
-            }
+            const unsubscribe = onSnapshot(roomDocRef, (doc) => {
+                if (doc.exists()) {
+                    // Room exists, now we can connect!
+                    console.log(`Host ${hostId} found. Attempting to connect.`);
+                    unsubscribe(); // Stop listening now that we've found it
+
+                    try {
+                        const conn = peer.connect(hostId, { reliable: true });
+                        setupConnection(conn);
+                    } catch (error) {
+                        console.error("Connection failed:", error);
+                        showAlert("Failed to connect to the room. Make sure the ID is correct.");
+                    }
+
+                } else {
+                    // This part will run initially, but we wait.
+                    console.log("Waiting for host to create the room...");
+                }
+            }, (error) => {
+                console.error("Error listening to room document:", error);
+                showAlert("Could not find the room. It may have been closed or the link is wrong.");
+            });
+
+            // Add a timeout to prevent waiting forever
+            setTimeout(() => {
+                unsubscribe();
+            }, 20000); // Stop listening after 20 seconds if no room is found
 
             console.log(`Attempting to connect to host ${hostId}`);
             try {
@@ -660,7 +765,7 @@
                 showAlert("Failed to connect to the room. Make sure the ID is correct.");
             }
         };
-        
+
         const addAudioStream = (audio, stream, peerId) => {
             audio.id = `audio-${peerId}`;
             audio.srcObject = stream;
@@ -677,15 +782,15 @@
             fullscreenOverlay.classList.remove('hidden');
             fullscreenOverlay.classList.add('flex');
             fullscreenCanvasContainer.appendChild(canvasContainer);
-            
+
             const toolsToMove = [
                 mainToolsContainer.querySelector('.flex.items-center.gap-2'), // color picker container
-                undoBtn, 
-                eraserBtn, 
+                undoBtn,
+                eraserBtn,
                 clearBtn
             ];
             toolsToMove.forEach(tool => fullscreenTools.appendChild(tool));
-            
+
             const exitBtn = document.createElement('button');
             exitBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6m-6 18h6v-6M3 15v6h6M3 9V3h6"/></svg>`;
             exitBtn.className = 'tool-btn bg-red-600 hover:bg-red-500 p-2 rounded-md transition-colors';
@@ -701,24 +806,24 @@
             isFullscreen = false;
             fullscreenOverlay.classList.add('hidden');
             fullscreenOverlay.classList.remove('flex');
-            
+
             // Move canvas back to its original parent
             leftPanel.appendChild(canvasContainer);
-            
+
             const toolsParentGrid = mainToolsContainer.querySelector('.grid');
-            
+
             // Select tools from the fullscreen toolbar
             const colorContainer = fullscreenTools.querySelector('.flex.items-center.gap-2');
             const undoButton = fullscreenTools.querySelector('#undo-btn');
             const eraserButton = fullscreenTools.querySelector('#eraser-btn');
             const clearButton = fullscreenTools.querySelector('#clear-btn');
-            
+
             // Restore tools to their original parent grid in the correct order
             toolsParentGrid.insertBefore(colorContainer, toolsParentGrid.firstChild);
             toolsParentGrid.appendChild(undoButton);
             toolsParentGrid.appendChild(eraserButton);
             toolsParentGrid.appendChild(clearButton);
-            
+
             fullscreenTools.innerHTML = ''; // Clean up the fullscreen toolbar
 
             resizeCanvas();
@@ -742,9 +847,9 @@
                 roomId = myPeerId;
                 window.history.replaceState(null, '', `#${roomId}`);
             }
-            
+
             await initializePeer(myPeerId);
-            
+
             const url = new URL(window.location.href);
             url.hash = roomId;
             shareLinkInput.value = url.href;
@@ -756,11 +861,9 @@
                 const roomDocRef = doc(db, "rooms", roomId);
                 await setDoc(roomDocRef, { host: myPeerId });
             } else {
-                setTimeout(() => {
-                    connectToHost(db, roomId);
-                }, 1000); 
+                connectToHost(db, roomId);
             }
-            
+
             window.addEventListener('beforeunload', async () => {
                 if (isHost) {
                     await deleteDoc(doc(db, "rooms", myPeerId));
@@ -772,7 +875,7 @@
         // --- EVENT LISTENERS ---
         window.addEventListener('load', main);
         window.addEventListener('resize', resizeCanvas);
-        
+
         canvas.addEventListener('mousedown', startDrawing);
         canvas.addEventListener('mouseup', stopDrawing);
         canvas.addEventListener('mouseout', stopDrawing);
@@ -796,7 +899,7 @@
         eraserBtn.addEventListener('click', () => {
             isErasing = !isErasing;
             eraserBtn.classList.toggle('active', isErasing);
-            if(isErasing) {
+            if (isErasing) {
                 savedColor = colorPicker.value;
                 currentColor = getCanvasBgColor();
             } else {
@@ -811,7 +914,7 @@
                 e.preventDefault();
                 undoLastAction();
             }
-            if(e.key === 'Escape' && isFullscreen){
+            if (e.key === 'Escape' && isFullscreen) {
                 exitFullscreen();
             }
         });
@@ -822,21 +925,21 @@
             clearCanvas();
             clearConfirmModal.classList.add('hidden');
         });
-        
+
         copyLinkBtn.addEventListener('click', () => {
             shareLinkInput.select();
             document.execCommand('copy');
             const originalText = copyLinkBtn.textContent;
             copyLinkBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5 inline-block mr-1"><polyline points="20 6 9 17 4 12"></polyline></svg>Copied!`;
-            setTimeout(() => { 
-                copyLinkBtn.textContent = originalText; 
+            setTimeout(() => {
+                copyLinkBtn.textContent = originalText;
             }, 2000);
         });
 
         attachFileBtn.addEventListener('click', () => fileInput.click());
         fileInput.addEventListener('change', (e) => {
             const file = e.target.files[0];
-            if(file) sendFile(file);
+            if (file) sendFile(file);
             e.target.value = '';
         });
 
@@ -846,7 +949,7 @@
                 addChatMessage(message, 'You');
                 const chatData = { type: 'chat', message: message, sender: myPeerId };
                 if (isHost) broadcast(chatData, myPeerId);
-                else if(connections[roomId]) connections[roomId].send(chatData);
+                else if (connections[roomId]) connections[roomId].send(chatData);
                 chatInput.value = '';
             }
         };
@@ -858,18 +961,18 @@
                 sendMessage();
             }
         });
-        
+
         fullscreenBtn.addEventListener('click', enterFullscreen);
 
         startCallBtn.addEventListener('click', async () => {
             try {
-                localStream = await navigator.mediaDevices.getUserMedia({ 
-                    video: false, 
+                localStream = await navigator.mediaDevices.getUserMedia({
+                    video: false,
                     audio: {
                         echoCancellation: true,
                         autoGainControl: true,
                         noiseSuppression: true
-                    } 
+                    }
                 });
                 console.log("Mic access granted");
                 startCallBtn.classList.add('hidden');
@@ -892,7 +995,7 @@
                 showAlert("Could not access microphone. Please check permissions.");
             }
         });
-        
+
         const updateMuteButton = () => {
             if (isMuted) {
                 muteBtn.innerHTML = `${unmuteIconSvg}Unmute`;
@@ -927,4 +1030,5 @@
 
     </script>
 </body>
+
 </html>
