@@ -552,10 +552,6 @@
             if (isHost) {
                 // Host broadcasts to all clients
                 broadcast(data);
-                // Host also processes certain data for itself (like history)
-                if (data.type === MSG_TYPE.DRAW) {
-                    // History is saved on mouse up
-                }
             } else if (connections[roomId]) {
                 // Client sends to host
                 connections[roomId].send(data);
@@ -627,7 +623,10 @@
                     resolve(peer);
                 });
 
-                peer.on('connection', (conn) => setupConnection(conn));
+                peer.on('connection', (conn) => {
+                    // This event fires on the HOST side when a guest connects.
+                    setupConnection(conn);
+                });
 
                 peer.on('call', (call) => {
                     call.answer(localStream); // Answer the call with an A/V stream.
@@ -654,41 +653,41 @@
             });
         };
 
+        // **FIXED**: This function now correctly sets up the connection without a nested event listener.
         const setupConnection = (conn) => {
-            conn.on('open', () => {
-                console.log(`Data connection to ${conn.peer} is now open.`);
-                connections[conn.peer] = conn;
-                connectionAttempts = 0; // Reset attempts on successful connection
+            // This logic now runs immediately when the function is called.
+            console.log(`Data connection to ${conn.peer} is now open.`);
+            connections[conn.peer] = conn;
+            connectionAttempts = 0; // Reset attempts on successful connection
 
-                if (isHost) {
-                    userDisplayList[conn.peer] = {};
-                    const userList = [myPeerId, ...Object.keys(userDisplayList)];
-                    broadcast({ type: MSG_TYPE.USER_LIST_UPDATE, users: userList });
+            if (isHost) {
+                userDisplayList[conn.peer] = {};
+                const userList = [myPeerId, ...Object.keys(userDisplayList)];
+                broadcast({ type: MSG_TYPE.USER_LIST_UPDATE, users: userList });
 
-                    // **FIX**: Send current canvas state to the new user
-                    const canvasDataUrl = canvas.toDataURL();
-                    conn.send({ type: MSG_TYPE.CANVAS_SYNC, data: canvasDataUrl });
-                }
-                updateConnectionStatus('Connected', `${Object.keys(connections).length + 1} users in room`);
-                addChatMessage(`${conn.peer.split('-')[0]} has joined the room.`, 'System', 'system');
-                updateUserList();
+                const canvasDataUrl = canvas.toDataURL();
+                conn.send({ type: MSG_TYPE.CANVAS_SYNC, data: canvasDataUrl });
+            }
+            
+            updateConnectionStatus('Connected', `${Object.keys(connections).length + 1} users in room`);
+            addChatMessage(`${conn.peer.split('-')[0]} has joined the room.`, 'System', 'system');
+            updateUserList();
 
-                if (localStream) {
-                    console.log(`Calling new peer ${conn.peer}`);
-                    const call = peer.call(conn.peer, localStream);
-                    const audio = document.createElement('audio');
-                    call.on('stream', (remoteStream) => addAudioStream(audio, remoteStream, call.peer));
-                    call.on('close', () => audio.remove());
-                }
-            });
+            if (localStream) {
+                console.log(`Calling new peer ${conn.peer}`);
+                const call = peer.call(conn.peer, localStream);
+                const audio = document.createElement('audio');
+                call.on('stream', (remoteStream) => addAudioStream(audio, remoteStream, call.peer));
+                call.on('close', () => audio.remove());
+            }
 
+            // Attach data and event handlers
             conn.on('data', (data) => {
-                // If this peer is the host, broadcast the data to all other clients
                 if (isHost) {
+                    // Host relays data to other clients
                     broadcast(data, conn.peer);
                 }
-
-                // All peers (host and clients) process the data
+                // All peers process the data
                 handleData(data);
             });
 
@@ -733,7 +732,10 @@
                     break;
                 case MSG_TYPE.CANVAS_SYNC:
                     applyDataUrlToCanvas(data.data);
-                    if (isHost) saveHistory();
+                    if (isHost) {
+                        // Replace history with this single state
+                        drawingHistory = [data.data];
+                    }
                     break;
                 case MSG_TYPE.CHAT:
                     addChatMessage(data.message, data.sender.split('-')[0]);
@@ -829,6 +831,7 @@
                         }
                     }, 10000);
                     
+                    // This event fires on the GUEST side when the connection is established.
                     conn.on('open', () => {
                         clearTimeout(connectionTimeout);
                         setupConnection(conn);
