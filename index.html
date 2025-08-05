@@ -237,8 +237,6 @@
     <div id="audio-container"></div>
 
     <script type="module">
-        // Simplified version without Firebase - using localStorage for basic room management
-        
         // --- ELEMENT SELECTORS ---
         const shareLinkInput = document.getElementById('share-link');
         const copyLinkBtn = document.getElementById('copy-link-btn');
@@ -290,13 +288,28 @@
         const fileChunks = {};
         let userDisplayList = {};
         let drawingHistory = [];
-        const HISTORY_LIMIT = 20;
+        const HISTORY_LIMIT = 30; // Increased history limit
         let localStream;
         let isMuted = false;
         let remoteMuteStates = {};
         let isFullscreen = false;
         let connectionAttempts = 0;
         const MAX_CONNECTION_ATTEMPTS = 3;
+
+        // --- MESSAGE TYPE CONSTANTS ---
+        const MSG_TYPE = {
+            CHAT: 'chat',
+            DRAW: 'draw',
+            CLEAR: 'clear',
+            UNDO_REQUEST: 'undo-request', // Client requests an undo
+            CANVAS_SYNC: 'canvas-sync',   // Host sends full canvas state
+            USER_LIST_UPDATE: 'user-list-update',
+            FILE_META: 'file-meta',
+            FILE_CHUNK: 'file-chunk',
+            FILE_COMPLETE: 'file-complete', // Added for robust file transfer
+            REMOTE_MUTE: 'remote-mute',
+            HANG_UP: 'hang-up'
+        };
 
         // --- SVG ICONS ---
         const fileIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="inline-block mr-2 w-5 h-5"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><polyline points="13 2 13 9 20 9"></polyline></svg>`;
@@ -382,7 +395,7 @@
                     peerBubble.classList.add('cursor-pointer', 'hover:bg-gray-500');
                     peerBubble.onclick = () => {
                         remoteMuteStates[peerId] = !remoteMuteStates[peerId];
-                        broadcast({ type: 'remote-mute', target: peerId, muted: remoteMuteStates[peerId] });
+                        sendData({ type: MSG_TYPE.REMOTE_MUTE, target: peerId, muted: remoteMuteStates[peerId] });
                         updateUserList();
                     };
                 }
@@ -417,7 +430,7 @@
             canvas.height = parent.clientHeight;
             
             applyCanvasStyles();
-            drawCanvasBackground();
+            // Don't draw background here, put the image back on
             if (canvas.width > 0 && canvas.height > 0) {
                 ctx.putImageData(imageData, 0, 0);
             }
@@ -433,32 +446,92 @@
             if (drawingHistory.length >= HISTORY_LIMIT) {
                 drawingHistory.shift();
             }
-            drawingHistory.push(ctx.getImageData(0, 0, canvas.width, canvas.height));
-        };
-
-        const undoLastAction = (broadcastUndo = true) => {
-            if (drawingHistory.length > 0) {
-                const lastState = drawingHistory.pop();
-                ctx.putImageData(lastState, 0, 0);
-                if (broadcastUndo) {
-                    broadcast({ type: 'undo', sender: myPeerId });
-                }
-            }
+            drawingHistory.push(canvas.toDataURL());
         };
 
         const startDrawing = (e) => {
             e.preventDefault();
-            saveHistory();
             drawing = true;
             const coords = getEventCoords(e);
             [lastX, lastY] = [coords.x, coords.y];
         };
 
         const stopDrawing = (e) => {
+            if (!drawing) return;
             e.preventDefault();
             drawing = false;
+            // Host saves history after a drawing action is completed
+            if (isHost) {
+                saveHistory();
+            }
         };
 
+        const draw = (e) => {
+            if (!drawing) return;
+            e.preventDefault();
+            const coords = getEventCoords(e);
+            const drawData = { 
+                type: MSG_TYPE.DRAW, 
+                x0: lastX / canvas.width, 
+                y0: lastY / canvas.height, 
+                x1: coords.x / canvas.width, 
+                y1: coords.y / canvas.height, 
+                color: currentColor, 
+                size: currentBrushSize 
+            };
+            
+            // Draw locally first
+            drawLine(lastX, lastY, coords.x, coords.y, currentColor, currentBrushSize);
+            
+            // Send data to others
+            sendData(drawData);
+
+            [lastX, lastY] = [coords.x, coords.y];
+        };
+
+        const drawLine = (x0, y0, x1, y1, color, size) => {
+            ctx.beginPath();
+            ctx.strokeStyle = color;
+            ctx.lineWidth = size;
+            ctx.moveTo(x0, y0);
+            ctx.lineTo(x1, y1);
+            ctx.stroke();
+        };
+
+        const clearCanvas = () => {
+            drawCanvasBackground();
+            if (isHost) {
+                drawingHistory = [];
+                saveHistory(); // Save the blank state
+                sendData({ type: MSG_TYPE.CLEAR });
+            }
+        };
+
+        const undoLastAction = () => {
+            if (isHost) {
+                if (drawingHistory.length > 1) {
+                    drawingHistory.pop(); // Remove current state
+                    const lastStateUrl = drawingHistory[drawingHistory.length - 1];
+                    sendData({ type: MSG_TYPE.CANVAS_SYNC, data: lastStateUrl });
+                    // Also apply to host's canvas
+                    applyDataUrlToCanvas(lastStateUrl);
+                }
+            } else {
+                // Client sends a request to the host
+                sendData({ type: MSG_TYPE.UNDO_REQUEST });
+            }
+        };
+
+        const applyDataUrlToCanvas = (dataUrl) => {
+            const img = new Image();
+            img.onload = () => {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            };
+            img.src = dataUrl;
+        };
+
+        // --- DATA COMMUNICATION ---
         const broadcast = (data, excludePeer = null) => {
             Object.keys(connections).forEach(peerId => {
                 if (peerId !== excludePeer) {
@@ -474,44 +547,18 @@
             });
         };
 
-        const draw = (e) => {
-            if (!drawing) return;
-            e.preventDefault();
-            const coords = getEventCoords(e);
-            drawLine(lastX, lastY, coords.x, coords.y, currentColor, currentBrushSize);
-            const drawData = { 
-                type: 'draw', 
-                sender: myPeerId, 
-                x0: lastX / canvas.width, 
-                y0: lastY / canvas.height, 
-                x1: coords.x / canvas.width, 
-                y1: coords.y / canvas.height, 
-                color: currentColor, 
-                size: currentBrushSize 
-            };
-            
+        const sendData = (data) => {
+            data.sender = myPeerId;
             if (isHost) {
-                broadcast(drawData, myPeerId);
+                // Host broadcasts to all clients
+                broadcast(data);
+                // Host also processes certain data for itself (like history)
+                if (data.type === MSG_TYPE.DRAW) {
+                    // History is saved on mouse up
+                }
             } else if (connections[roomId]) {
-                connections[roomId].send(drawData);
-            }
-            [lastX, lastY] = [coords.x, coords.y];
-        };
-
-        const drawLine = (x0, y0, x1, y1, color, size) => {
-            ctx.beginPath();
-            ctx.strokeStyle = color;
-            ctx.lineWidth = size;
-            ctx.moveTo(x0, y0);
-            ctx.lineTo(x1, y1);
-            ctx.stroke();
-        };
-
-        const clearCanvas = (broadcastClear = true) => {
-            drawCanvasBackground();
-            drawingHistory = [];
-            if (broadcastClear) {
-                broadcast({ type: 'clear', sender: myPeerId });
+                // Client sends to host
+                connections[roomId].send(data);
             }
         };
 
@@ -522,24 +569,26 @@
                 return;
             }
             const fileId = `${Date.now()}-${file.name}`;
-            const metadata = { type: 'file-meta', name: file.name, size: file.size, fileId: fileId, mimeType: file.type, sender: myPeerId };
+            const metadata = { type: MSG_TYPE.FILE_META, name: file.name, size: file.size, fileId: fileId, mimeType: file.type };
             addChatMessage(`${fileIconSvg}Sending ${file.name}... <progress id="progress-${fileId}" value="0" max="${file.size}" class="w-full mt-2 rounded-full"></progress>`, 'You');
-
-            if (isHost) broadcast(metadata);
-            else if (connections[roomId]) connections[roomId].send(metadata);
+            sendData(metadata);
 
             const chunkSize = 16384;
             const reader = new FileReader();
             let offset = 0;
             reader.onload = (e) => {
                 if (!e.target.error) {
-                    const chunkData = { type: 'file-chunk', fileId: fileId, data: e.target.result, sender: myPeerId };
-                    if (isHost) broadcast(chunkData);
-                    else if (connections[roomId]) connections[roomId].send(chunkData);
+                    const chunkData = { type: MSG_TYPE.FILE_CHUNK, fileId: fileId, data: e.target.result };
+                    sendData(chunkData);
                     offset += e.target.result.byteLength;
                     const progress = document.getElementById(`progress-${fileId}`);
                     if (progress) progress.value = offset;
-                    if (offset < file.size) readSlice(offset);
+                    if (offset < file.size) {
+                        readSlice(offset);
+                    } else {
+                        // Send completion message
+                        sendData({ type: MSG_TYPE.FILE_COMPLETE, fileId: fileId });
+                    }
                 } else {
                     showAlert("Error reading file.");
                 }
@@ -549,85 +598,59 @@
         };
 
         // --- PEERJS LOGIC ---
-        const initializePeer = async (id) => {
+        const initializePeer = (id) => {
             myPeerId = id;
             return new Promise((resolve) => {
-                // Use different PeerJS servers for better reliability
-                const servers = [
-                    { host: 'peerjs-server.herokuapp.com', port: 443, secure: true },
-                    { secure: true, port: 443 }, // Default
-                    { host: '0.peerjs.com', port: 443, secure: true }
-                ];
-                
-                let serverIndex = 0;
-                
-                const tryConnection = () => {
-                    if (serverIndex >= servers.length) {
-                        showAlert("Could not connect to any PeerJS server. Please refresh and try again.");
-                        resolve(null);
-                        return;
-                    }
-                    
-                    const config = servers[serverIndex];
-                    updateConnectionStatus('Connecting...', `Trying server ${serverIndex + 1}/${servers.length}`);
-                    
-                    peer = new Peer(myPeerId, {
-                        ...config,
-                        pingInterval: 5000,
-                        debug: 1
-                    });
-
-                    const timeout = setTimeout(() => {
-                        if (peer && !peer.open) {
-                            peer.destroy();
-                            serverIndex++;
-                            tryConnection();
-                        }
-                    }, 10000);
-
-                    peer.on('open', (id) => {
-                        clearTimeout(timeout);
-                        console.log(`PeerJS Open. Your ID is ${id}`);
-                        updateConnectionStatus('Waiting for connection...', `Connected to server ${serverIndex + 1}`);
-                        resolve(peer);
-                    });
-
-                    peer.on('connection', (conn) => setupConnection(conn));
-
-                    peer.on('call', (call) => {
-                        if (localStream) {
-                            call.answer(localStream);
-                        } else {
-                            call.answer();
-                        }
-                        const audio = document.createElement('audio');
-                        call.on('stream', (remoteStream) => {
-                            addAudioStream(audio, remoteStream, call.peer);
-                        });
-                        call.on('close', () => audio.remove());
-                    });
-
-                    peer.on('disconnected', () => {
-                        updateConnectionStatus('Reconnecting...', 'Connection lost, attempting to reconnect...');
-                        if (!peer.destroyed) {
-                            peer.reconnect();
-                        }
-                    });
-
-                    peer.on('error', (err) => {
-                        clearTimeout(timeout);
-                        console.error(`PeerJS error on server ${serverIndex + 1}:`, err);
-                        if (err.type === 'network' || err.type === 'server-error') {
-                            serverIndex++;
-                            tryConnection();
-                        } else {
-                            showAlert(`Connection error: ${err.message}. Please refresh and try again.`);
-                            resolve(null);
-                        }
-                    });
+                const peerConfig = {
+                    host: '0.peerjs.com',
+                    port: 443,
+                    secure: true,
+                    pingInterval: 5000,
+                    debug: 1,
                 };
                 
-                tryConnection();
+                updateConnectionStatus('Connecting...', 'Connecting to signaling server...');
+                peer = new Peer(myPeerId, peerConfig);
+
+                const timeout = setTimeout(() => {
+                    if (peer && !peer.open) {
+                        showAlert("Could not connect to the PeerJS server. It might be overloaded. Please refresh and try again.");
+                        peer.destroy();
+                        resolve(null);
+                    }
+                }, 15000); // Increased timeout for public server
+
+                peer.on('open', (id) => {
+                    clearTimeout(timeout);
+                    console.log(`PeerJS Open. Your ID is ${id}`);
+                    updateConnectionStatus('Waiting for connection...', `Ready to connect`);
+                    resolve(peer);
+                });
+
+                peer.on('connection', (conn) => setupConnection(conn));
+
+                peer.on('call', (call) => {
+                    call.answer(localStream); // Answer the call with an A/V stream.
+                    const audio = document.createElement('audio');
+                    call.on('stream', (remoteStream) => {
+                        addAudioStream(audio, remoteStream, call.peer);
+                    });
+                    call.on('close', () => audio.remove());
+                });
+
+                peer.on('disconnected', () => {
+                    updateConnectionStatus('Reconnecting...', 'Connection lost, attempting to reconnect...');
+                    if (!peer.destroyed) {
+                        peer.reconnect();
+                    }
+                });
+
+                peer.on('error', (err) => {
+                    clearTimeout(timeout);
+                    console.error(`PeerJS error:`, err);
+                    showAlert(`Connection error: ${err.message}. Please refresh and try again.`);
+                    resolve(null);
+                });
             });
         };
 
@@ -640,7 +663,11 @@
                 if (isHost) {
                     userDisplayList[conn.peer] = {};
                     const userList = [myPeerId, ...Object.keys(userDisplayList)];
-                    broadcast({ type: 'user-list-update', users: userList });
+                    broadcast({ type: MSG_TYPE.USER_LIST_UPDATE, users: userList });
+
+                    // **FIX**: Send current canvas state to the new user
+                    const canvasDataUrl = canvas.toDataURL();
+                    conn.send({ type: MSG_TYPE.CANVAS_SYNC, data: canvasDataUrl });
                 }
                 updateConnectionStatus('Connected', `${Object.keys(connections).length + 1} users in room`);
                 addChatMessage(`${conn.peer.split('-')[0]} has joined the room.`, 'System', 'system');
@@ -650,130 +677,128 @@
                     console.log(`Calling new peer ${conn.peer}`);
                     const call = peer.call(conn.peer, localStream);
                     const audio = document.createElement('audio');
-                    call.on('stream', (remoteStream) => {
-                        addAudioStream(audio, remoteStream, call.peer);
-                    });
+                    call.on('stream', (remoteStream) => addAudioStream(audio, remoteStream, call.peer));
                     call.on('close', () => audio.remove());
                 }
             });
 
             conn.on('data', (data) => {
+                // If this peer is the host, broadcast the data to all other clients
                 if (isHost) {
                     broadcast(data, conn.peer);
                 }
 
-                // Handle different data types
-                switch (data.type) {
-                    case 'file-meta':
-                        fileChunks[data.fileId] = { 
-                            chunks: [], 
-                            name: data.name, 
-                            size: data.size, 
-                            mimeType: data.mimeType, 
-                            receivedSize: 0, 
-                            msgElement: addChatMessage(`${fileIconSvg}Receiving ${data.name}... <progress id="progress-${data.fileId}" value="0" max="${data.size}" class="w-full mt-2 rounded-full"></progress>`, data.sender.split('-')[0]) 
-                        };
-                        break;
-                        
-                    case 'file-chunk':
-                        const fileData = fileChunks[data.fileId];
-                        if (!fileData) return;
-                        fileData.chunks.push(data.data);
-                        fileData.receivedSize += data.data.byteLength;
-                        const progress = document.getElementById(`progress-${data.fileId}`);
-                        if (progress) progress.value = fileData.receivedSize;
-
-                        if (fileData.receivedSize === fileData.size) {
-                            const fileBlob = new Blob(fileData.chunks, { type: fileData.mimeType });
-                            const url = URL.createObjectURL(fileBlob);
-                            const actionsContainer = document.createElement('div');
-                            actionsContainer.className = 'flex items-center gap-2 mt-3';
-                            const openBtn = document.createElement('a');
-                            openBtn.innerHTML = `${openIconSvg}Open`;
-                            openBtn.href = url;
-                            openBtn.target = '_blank';
-                            openBtn.className = 'bg-gray-600 hover:bg-gray-500 text-white text-xs px-3 py-1 rounded-full no-underline transition-colors';
-                            const downloadLink = document.createElement('a');
-                            downloadLink.href = url;
-                            downloadLink.download = fileData.name;
-                            downloadLink.innerHTML = `${downloadIconSvg}Download`;
-                            downloadLink.className = "bg-purple-500 hover:bg-purple-600 text-white text-xs px-3 py-1 rounded-full no-underline transition-colors";
-                            actionsContainer.appendChild(openBtn);
-                            actionsContainer.appendChild(downloadLink);
-                            const messageContentDiv = fileData.msgElement.querySelector('.message-content');
-                            if (messageContentDiv) {
-                                messageContentDiv.innerHTML = `${fileIconSvg}Received: ${fileData.name}`;
-                                messageContentDiv.appendChild(actionsContainer);
-                            }
-                            delete fileChunks[data.fileId];
-                        }
-                        break;
-                        
-                    case 'chat':
-                        addChatMessage(data.message, data.sender.split('-')[0]);
-                        break;
-                        
-                    case 'draw':
-                        const { x0, y0, x1, y1, color, size } = data;
-                        drawLine(x0 * canvas.width, y0 * canvas.height, x1 * canvas.width, y1 * canvas.height, color, size);
-                        break;
-                        
-                    case 'clear':
-                        clearCanvas(false);
-                        break;
-                        
-                    case 'undo':
-                        undoLastAction(false);
-                        break;
-                        
-                    case 'user-list-update':
-                        userDisplayList = {};
-                        data.users.forEach(userId => {
-                            if (userId !== myPeerId) {
-                                userDisplayList[userId] = {};
-                            }
-                        });
-                        updateUserList();
-                        break;
-                        
-                    case 'remote-mute':
-                        if (data.target === myPeerId) {
-                            isMuted = data.muted;
-                            if (localStream) {
-                                localStream.getAudioTracks()[0].enabled = !isMuted;
-                            }
-                            updateMuteButton();
-                        }
-                        break;
-                        
-                    case 'hang-up':
-                        const audioEl = document.getElementById(`audio-${data.sender}`);
-                        if (audioEl) audioEl.remove();
-                        break;
-                }
+                // All peers (host and clients) process the data
+                handleData(data);
             });
 
-            conn.on('close', () => {
-                console.log(`Connection from ${conn.peer} closed.`);
-                addChatMessage(`${conn.peer.split('-')[0]} has left the room.`, 'System', 'system');
-                delete connections[conn.peer];
-                delete userDisplayList[conn.peer];
-                if (isHost) {
-                    broadcast({ type: 'user-list-update', users: [myPeerId, ...Object.keys(userDisplayList)] });
-                }
-                const remainingConnections = Object.keys(connections).length;
-                if (remainingConnections === 0 && !isHost) {
-                    updateConnectionStatus('Disconnected', 'All users have left');
-                } else {
-                    updateConnectionStatus('Connected', `${remainingConnections + 1} users in room`);
-                }
-                updateUserList();
-            });
-
+            conn.on('close', () => handleDisconnect(conn.peer));
             conn.on('error', (err) => {
                 console.error(`Connection error with ${conn.peer}:`, err);
                 showAlert(`Connection error with ${conn.peer.split('-')[0]}.`);
             });
+        };
+        
+        const handleDisconnect = (peerId) => {
+            console.log(`Connection from ${peerId} closed.`);
+            addChatMessage(`${peerId.split('-')[0]} has left the room.`, 'System', 'system');
+            delete connections[peerId];
+            delete userDisplayList[peerId];
+            
+            if (isHost) {
+                broadcast({ type: MSG_TYPE.USER_LIST_UPDATE, users: [myPeerId, ...Object.keys(userDisplayList)] });
+            }
+            
+            const remainingConnections = Object.keys(connections).length;
+            if (remainingConnections === 0 && !isHost) {
+                updateConnectionStatus('Disconnected', 'Host has left');
+            } else {
+                updateConnectionStatus('Connected', `${remainingConnections + 1} users in room`);
+            }
+            updateUserList();
+        };
+
+        const handleData = (data) => {
+            switch (data.type) {
+                case MSG_TYPE.DRAW:
+                    const { x0, y0, x1, y1, color, size } = data;
+                    drawLine(x0 * canvas.width, y0 * canvas.height, x1 * canvas.width, y1 * canvas.height, color, size);
+                    break;
+                case MSG_TYPE.CLEAR:
+                    drawCanvasBackground();
+                    if (isHost) saveHistory();
+                    break;
+                case MSG_TYPE.UNDO_REQUEST:
+                    if (isHost) undoLastAction();
+                    break;
+                case MSG_TYPE.CANVAS_SYNC:
+                    applyDataUrlToCanvas(data.data);
+                    if (isHost) saveHistory();
+                    break;
+                case MSG_TYPE.CHAT:
+                    addChatMessage(data.message, data.sender.split('-')[0]);
+                    break;
+                case MSG_TYPE.USER_LIST_UPDATE:
+                    userDisplayList = {};
+                    data.users.forEach(userId => {
+                        if (userId !== myPeerId) userDisplayList[userId] = {};
+                    });
+                    updateUserList();
+                    break;
+                case MSG_TYPE.FILE_META:
+                    fileChunks[data.fileId] = { 
+                        chunks: [], name: data.name, size: data.size, mimeType: data.mimeType, receivedSize: 0, 
+                        msgElement: addChatMessage(`${fileIconSvg}Receiving ${data.name}... <progress id="progress-${data.fileId}" value="0" max="${data.size}" class="w-full mt-2 rounded-full"></progress>`, data.sender.split('-')[0]) 
+                    };
+                    break;
+                case MSG_TYPE.FILE_CHUNK:
+                    const fileData = fileChunks[data.fileId];
+                    if (fileData) {
+                        fileData.chunks.push(data.data);
+                        fileData.receivedSize += data.data.byteLength;
+                        const progress = document.getElementById(`progress-${data.fileId}`);
+                        if (progress) progress.value = fileData.receivedSize;
+                    }
+                    break;
+                case MSG_TYPE.FILE_COMPLETE:
+                    const completeFileData = fileChunks[data.fileId];
+                    if (completeFileData && completeFileData.receivedSize === completeFileData.size) {
+                        const fileBlob = new Blob(completeFileData.chunks, { type: completeFileData.mimeType });
+                        const url = URL.createObjectURL(fileBlob);
+                        const actionsContainer = document.createElement('div');
+                        actionsContainer.className = 'flex items-center gap-2 mt-3';
+                        const openBtn = document.createElement('a');
+                        openBtn.innerHTML = `${openIconSvg}Open`;
+                        openBtn.href = url;
+                        openBtn.target = '_blank';
+                        openBtn.className = 'bg-gray-600 hover:bg-gray-500 text-white text-xs px-3 py-1 rounded-full no-underline transition-colors';
+                        const downloadLink = document.createElement('a');
+                        downloadLink.href = url;
+                        downloadLink.download = completeFileData.name;
+                        downloadLink.innerHTML = `${downloadIconSvg}Download`;
+                        downloadLink.className = "bg-purple-500 hover:bg-purple-600 text-white text-xs px-3 py-1 rounded-full no-underline transition-colors";
+                        actionsContainer.appendChild(openBtn);
+                        actionsContainer.appendChild(downloadLink);
+                        const messageContentDiv = completeFileData.msgElement.querySelector('.message-content');
+                        if (messageContentDiv) {
+                            messageContentDiv.innerHTML = `${fileIconSvg}Received: ${completeFileData.name}`;
+                            messageContentDiv.appendChild(actionsContainer);
+                        }
+                        delete fileChunks[data.fileId];
+                    }
+                    break;
+                case MSG_TYPE.REMOTE_MUTE:
+                    if (data.target === myPeerId) {
+                        isMuted = data.muted;
+                        if (localStream) localStream.getAudioTracks()[0].enabled = !isMuted;
+                        updateMuteButton();
+                    }
+                    break;
+                case MSG_TYPE.HANG_UP:
+                    const audioEl = document.getElementById(`audio-${data.sender}`);
+                    if (audioEl) audioEl.remove();
+                    break;
+            }
         };
 
         const connectToHost = async (hostId) => {
@@ -786,23 +811,21 @@
             updateConnectionStatus('Connecting...', `Attempting to join room ${hostId.split('-')[0]}...`);
             
             const attemptConnection = () => {
+                if (connectionAttempts >= MAX_CONNECTION_ATTEMPTS) {
+                    showAlert("Could not connect to the room. The host may be offline or the room ID is incorrect.");
+                    updateConnectionStatus('Connection Failed', 'Unable to join room');
+                    return;
+                }
+                
                 try {
-                    const conn = peer.connect(hostId, { 
-                        reliable: true,
-                        serialization: 'json'
-                    });
+                    const conn = peer.connect(hostId, { reliable: true, serialization: 'json' });
                     
                     const connectionTimeout = setTimeout(() => {
                         if (!conn.open) {
                             connectionAttempts++;
-                            if (connectionAttempts < MAX_CONNECTION_ATTEMPTS) {
-                                console.log(`Connection attempt ${connectionAttempts} failed, retrying...`);
-                                updateConnectionStatus('Connecting...', `Retry attempt ${connectionAttempts}/${MAX_CONNECTION_ATTEMPTS}`);
-                                setTimeout(attemptConnection, 2000);
-                            } else {
-                                showAlert("Could not connect to the room. The host may be offline or the room ID is incorrect.");
-                                updateConnectionStatus('Connection Failed', 'Unable to join room');
-                            }
+                            console.log(`Connection attempt ${connectionAttempts} failed, retrying...`);
+                            updateConnectionStatus('Connecting...', `Retry attempt ${connectionAttempts}/${MAX_CONNECTION_ATTEMPTS}`);
+                            attemptConnection();
                         }
                     }, 10000);
                     
@@ -815,21 +838,12 @@
                         clearTimeout(connectionTimeout);
                         console.error("Connection failed:", err);
                         connectionAttempts++;
-                        if (connectionAttempts < MAX_CONNECTION_ATTEMPTS) {
-                            setTimeout(attemptConnection, 2000);
-                        } else {
-                            showAlert("Failed to connect to the room. Please check the room ID and try again.");
-                        }
+                        attemptConnection();
                     });
-                    
                 } catch (error) {
                     console.error("Connection failed:", error);
                     connectionAttempts++;
-                    if (connectionAttempts < MAX_CONNECTION_ATTEMPTS) {
-                        setTimeout(attemptConnection, 2000);
-                    } else {
-                        showAlert("Failed to connect to the room. Please refresh and try again.");
-                    }
+                    attemptConnection();
                 }
             };
             
@@ -839,6 +853,7 @@
         const addAudioStream = (audio, stream, peerId) => {
             audio.id = `audio-${peerId}`;
             audio.srcObject = stream;
+            audio.autoplay = true;
             audio.addEventListener('loadedmetadata', () => {
                 audio.play().catch(e => console.log('Audio play failed:', e));
             });
@@ -887,8 +902,9 @@
             const eraserButton = fullscreenTools.querySelector('#eraser-btn');
             const clearButton = fullscreenTools.querySelector('#clear-btn');
 
-            if (colorContainer) toolsParentGrid.insertBefore(colorContainer, toolsParentGrid.firstChild);
-            if (undoButton) toolsParentGrid.appendChild(undoButton);
+            if (colorContainer) toolsParentGrid.insertBefore(colorContainer, toolsParentGrid.children[1]);
+            if (undoButton) toolsParentGrid.insertBefore(undoButton, eraserButton);
+            // Eraser and Clear should already be there, but let's re-append for order
             if (eraserButton) toolsParentGrid.appendChild(eraserButton);
             if (clearButton) toolsParentGrid.appendChild(clearButton);
 
@@ -899,6 +915,7 @@
         // --- MAIN APP INITIALIZATION ---
         const main = async () => {
             applyCanvasStyles();
+            resizeCanvas(); // Initial resize
             drawCanvasBackground();
             
             roomId = window.location.hash.substring(1);
@@ -924,6 +941,7 @@
 
             if (isHost) {
                 updateConnectionStatus('Waiting for connection...', 'Room created, share the link to invite others');
+                saveHistory(); // Save the initial blank state for the host
             } else {
                 await connectToHost(roomId);
             }
@@ -1002,7 +1020,6 @@
                     copyLinkBtn.textContent = originalText;
                 }, 2000);
             } catch (err) {
-                // Fallback for older browsers
                 shareLinkInput.select();
                 document.execCommand('copy');
                 copyLinkBtn.textContent = 'Copied!';
@@ -1025,9 +1042,7 @@
             const message = chatInput.value.trim();
             if (message) {
                 addChatMessage(message, 'You');
-                const chatData = { type: 'chat', message: message, sender: myPeerId };
-                if (isHost) broadcast(chatData, myPeerId);
-                else if (connections[roomId]) connections[roomId].send(chatData);
+                sendData({ type: MSG_TYPE.CHAT, message: message });
                 chatInput.value = '';
             }
         };
@@ -1048,11 +1063,7 @@
             try {
                 localStream = await navigator.mediaDevices.getUserMedia({
                     video: false,
-                    audio: {
-                        echoCancellation: true,
-                        autoGainControl: true,
-                        noiseSuppression: true
-                    }
+                    audio: { echoCancellation: true, autoGainControl: true, noiseSuppression: true }
                 });
                 console.log("Mic access granted");
                 startCallBtn.classList.add('hidden');
@@ -1064,9 +1075,7 @@
                     console.log(`Calling existing peer ${peerId}`);
                     const call = peer.call(peerId, localStream);
                     const audio = document.createElement('audio');
-                    call.on('stream', (remoteStream) => {
-                        addAudioStream(audio, remoteStream, call.peer);
-                    });
+                    call.on('stream', (remoteStream) => addAudioStream(audio, remoteStream, call.peer));
                     call.on('close', () => audio.remove());
                 });
             } catch (err) {
@@ -1099,7 +1108,7 @@
             if (localStream) {
                 localStream.getTracks().forEach(track => track.stop());
                 localStream = null;
-                broadcast({ type: 'hang-up', sender: myPeerId });
+                sendData({ type: MSG_TYPE.HANG_UP });
                 audioContainer.innerHTML = '';
                 startCallBtn.classList.remove('hidden');
                 muteBtn.classList.add('hidden');
