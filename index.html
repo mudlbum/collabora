@@ -1,17 +1,15 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Collabra - P2P Group Drawing & Chat</title>
+    <title>Collabra - P2P Group Drawing & Chat (Fixed)</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        /* Custom styles to complement Tailwind */
         body {
             font-family: 'Inter', sans-serif;
         }
@@ -64,14 +62,6 @@
             width: 500px;
         }
 
-        .modal-close-btn {
-            margin-top: 1.5rem;
-            background-color: #4a5568;
-            padding: 0.5rem 1rem;
-            border-radius: 0.375rem;
-            cursor: pointer;
-        }
-
         .tool-btn.active {
             background-color: #4fd1c5;
             color: #1a202c;
@@ -91,76 +81,81 @@
         .user-bubble.is-host {
             cursor: pointer;
         }
+
+        .status-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .status-connected { background-color: #10b981; }
+        .status-waiting { background-color: #f59e0b; }
+        .status-error { background-color: #ef4444; }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .status-waiting { animation: pulse 2s infinite; }
     </style>
 </head>
 
 <body class="bg-gray-900 text-white flex flex-col h-screen">
-
     <header class="bg-gray-800 shadow-md p-4 z-10 flex-shrink-0">
         <div class="w-full max-w-7xl mx-auto flex justify-between items-center">
             <h1 class="text-2xl font-bold text-cyan-400">Collabra</h1>
-            <div id="connection-status"
-                class="text-sm font-medium bg-red-500 text-white py-1 px-3 rounded-full transition-colors">
+            <div id="connection-status" class="text-sm font-medium bg-red-500 text-white py-1 px-3 rounded-full transition-colors">
+                <span class="status-indicator status-error"></span>
                 Status: Not Connected
             </div>
         </div>
     </header>
 
     <main class="flex-grow flex flex-col xl:flex-row w-full max-w-7xl mx-auto p-4 gap-4 overflow-y-auto">
-
         <div id="left-panel" class="flex flex-col w-full xl:w-2/3 gap-4 order-last xl:order-first">
             <div class="bg-gray-800 p-4 rounded-lg shadow-lg space-y-4 flex-shrink-0">
                 <div>
                     <h2 class="text-lg font-semibold mb-3">Connection</h2>
                     <div class="mt-2">
-                        <label for="share-link" class="text-sm font-medium text-gray-400">Share this Room Link to Invite
-                            Others (Max 5 Users)</label>
+                        <label for="share-link" class="text-sm font-medium text-gray-400">Share this Room Link to Invite Others (Max 5 Users)</label>
                         <div class="flex items-center bg-gray-700 rounded-md mt-1">
-                            <input type="text" id="share-link"
-                                class="w-full bg-transparent p-2 border-none focus:ring-0"
-                                placeholder="Generating link..." readonly>
-                            <button id="copy-link-btn"
-                                class="bg-purple-500 hover:bg-purple-600 text-white font-bold py-2 px-4 rounded-r-md transition-colors"
-                                disabled>Copy Link</button>
+                            <input type="text" id="share-link" class="w-full bg-transparent p-2 border-none focus:ring-0" placeholder="Generating link..." readonly>
+                            <button id="copy-link-btn" class="bg-purple-500 hover:bg-purple-600 text-white font-bold py-2 px-4 rounded-r-md transition-colors" disabled>Copy Link</button>
                         </div>
                     </div>
+                    <div id="connection-info" class="text-xs text-gray-400 mt-2"></div>
                 </div>
+                
                 <div id="main-tools-container">
                     <h2 class="text-lg font-semibold mb-3">Tools</h2>
                     <div class="grid grid-cols-3 md:grid-cols-5 gap-4 items-center">
                         <div class="flex items-center gap-2">
                             <label for="color-picker" class="text-sm font-medium text-gray-400">Color:</label>
-                            <input type="color" id="color-picker" value="#FFFFFF"
-                                class="w-10 h-10 rounded-md cursor-pointer">
+                            <input type="color" id="color-picker" value="#000000" class="w-10 h-10 rounded-md cursor-pointer">
                         </div>
                         <div class="flex flex-col gap-2 col-span-2 md:col-span-1">
-                            <label for="brush-size" class="text-sm font-medium text-gray-400">Size: <span
-                                    id="brush-size-label">5</span>px</label>
+                            <label for="brush-size" class="text-sm font-medium text-gray-400">Size: <span id="brush-size-label">5</span>px</label>
                             <input type="range" id="brush-size" min="1" max="50" value="5" class="w-full">
                         </div>
-                        <button id="undo-btn"
-                            class="tool-btn bg-gray-600 hover:bg-gray-500 p-2 rounded-md transition-colors flex items-center justify-center">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
-                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                stroke-linejoin="round">
+                        <button id="undo-btn" class="tool-btn bg-gray-600 hover:bg-gray-500 p-2 rounded-md transition-colors flex items-center justify-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <path d="M3 3v6h6"></path>
                                 <path d="M21 12a9 9 0 0 0-14.65-6.65L3 9"></path>
                             </svg>
                         </button>
-                        <button id="eraser-btn"
-                            class="tool-btn bg-gray-600 hover:bg-gray-500 p-2 rounded-md transition-colors">Eraser</button>
-                        <button id="clear-btn"
-                            class="bg-red-600 hover:bg-red-500 p-2 rounded-md transition-colors">Clear</button>
+                        <button id="eraser-btn" class="tool-btn bg-gray-600 hover:bg-gray-500 p-2 rounded-md transition-colors">Eraser</button>
+                        <button id="clear-btn" class="bg-red-600 hover:bg-red-500 p-2 rounded-md transition-colors">Clear</button>
                     </div>
                 </div>
+
                 <div id="voice-controls-container">
                     <h2 class="text-lg font-semibold mb-3">Voice Chat</h2>
                     <div class="flex gap-4">
-                        <button id="start-call-btn"
-                            class="tool-btn bg-green-600 hover:bg-green-500 p-2 rounded-md transition-colors flex-grow flex items-center justify-center gap-2">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
-                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                stroke-linejoin="round">
+                        <button id="start-call-btn" class="tool-btn bg-green-600 hover:bg-green-500 p-2 rounded-md transition-colors flex-grow flex items-center justify-center gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
                                 <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
                                 <line x1="12" y1="19" x2="12" y2="23"></line>
@@ -168,17 +163,10 @@
                             </svg>
                             Start Call
                         </button>
-                        <button id="mute-btn"
-                            class="tool-btn bg-gray-600 hover:bg-gray-500 p-2 rounded-md transition-colors flex-grow flex items-center justify-center gap-2 hidden">
-                        </button>
-                        <button id="end-call-btn"
-                            class="tool-btn bg-red-600 hover:bg-red-500 p-2 rounded-md transition-colors flex-grow flex items-center justify-center gap-2 hidden">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
-                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                stroke-linejoin="round">
-                                <path
-                                    d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7 2 2 0 0 1 1.72 2v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91">
-                                </path>
+                        <button id="mute-btn" class="tool-btn bg-gray-600 hover:bg-gray-500 p-2 rounded-md transition-colors flex-grow flex items-center justify-center gap-2 hidden"></button>
+                        <button id="end-call-btn" class="tool-btn bg-red-600 hover:bg-red-500 p-2 rounded-md transition-colors flex-grow flex items-center justify-center gap-2 hidden">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7 2 2 0 0 1 1.72 2v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91"></path>
                             </svg>
                             End Call
                         </button>
@@ -188,46 +176,33 @@
 
             <div id="canvas-bg" class="bg-gray-800 rounded-lg shadow-lg flex-grow relative canvas-container p-2">
                 <canvas id="drawing-canvas"></canvas>
-                <button id="fullscreen-btn"
-                    class="absolute top-4 right-4 bg-gray-700 bg-opacity-50 hover:bg-opacity-75 text-white p-2 rounded-full transition-opacity">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
-                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path
-                            d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3">
-                        </path>
+                <button id="fullscreen-btn" class="absolute top-4 right-4 bg-gray-700 bg-opacity-50 hover:bg-opacity-75 text-white p-2 rounded-full transition-opacity">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
                     </svg>
                 </button>
             </div>
         </div>
 
-        <div id="right-panel"
-            class="flex flex-col w-full xl:w-1/3 bg-gray-800 rounded-lg shadow-lg overflow-hidden flex-shrink-0 order-first xl:order-last h-[80vh] max-h-[600px] xl:h-auto xl:max-h-full">
+        <div id="right-panel" class="flex flex-col w-full xl:w-1/3 bg-gray-800 rounded-lg shadow-lg overflow-hidden flex-shrink-0 order-first xl:order-last h-[80vh] max-h-[600px] xl:h-auto xl:max-h-full">
             <div class="p-4 border-b border-gray-700">
                 <h2 class="text-lg font-semibold mb-2">Users in Room</h2>
-                <div id="user-list" class="flex flex-wrap gap-2">
-                </div>
+                <div id="user-list" class="flex flex-wrap gap-2"></div>
             </div>
             <div id="chat-messages" class="flex-grow p-4 overflow-y-auto flex flex-col-reverse">
-                <div class="text-center text-gray-500 text-sm my-2">Welcome! Copy the link above to invite friends.
-                </div>
+                <div class="text-center text-gray-500 text-sm my-2">Welcome! Copy the link above to invite friends.</div>
             </div>
             <div class="p-4 border-t border-gray-700">
                 <div class="flex gap-2">
                     <input type="file" id="file-input" class="hidden">
                     <button id="attach-file-btn" class="bg-gray-600 hover:bg-gray-500 p-2 rounded-md">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
-                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path
-                                d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48">
-                            </path>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path>
                         </svg>
                     </button>
-                    <input type="text" id="chat-input" placeholder="Type a message..."
-                        class="flex-grow bg-gray-700 p-2 rounded-md border border-gray-600 focus:ring-cyan-500 focus:border-cyan-500">
-                    <button id="send-chat-btn"
-                        class="bg-cyan-500 hover:bg-cyan-600 text-white font-bold p-2 rounded-md transition-colors flex-shrink-0">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
-                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <input type="text" id="chat-input" placeholder="Type a message..." class="flex-grow bg-gray-700 p-2 rounded-md border border-gray-600 focus:ring-cyan-500 focus:border-cyan-500">
+                    <button id="send-chat-btn" class="bg-cyan-500 hover:bg-cyan-600 text-white font-bold p-2 rounded-md transition-colors flex-shrink-0">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <line x1="22" y1="2" x2="11" y2="13"></line>
                             <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
                         </svg>
@@ -239,9 +214,7 @@
 
     <div id="fullscreen-overlay" class="fixed inset-0 bg-gray-900 z-50 hidden flex-col items-center justify-center">
         <div id="fullscreen-canvas-container" class="w-full h-full p-4 flex items-center justify-center"></div>
-        <div id="fullscreen-tools"
-            class="absolute bottom-4 bg-gray-700 bg-opacity-80 p-3 rounded-xl shadow-lg flex items-center gap-4">
-        </div>
+        <div id="fullscreen-tools" class="absolute bottom-4 bg-gray-700 bg-opacity-80 p-3 rounded-xl shadow-lg flex items-center gap-4"></div>
     </div>
 
     <div id="custom-alert" class="modal-backdrop hidden">
@@ -255,10 +228,8 @@
         <div class="modal-content">
             <p id="clear-confirm-message">Are you sure you want to clear the canvas for everyone?</p>
             <div class="mt-6 flex justify-center gap-4">
-                <button id="clear-cancel-btn"
-                    class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-6 rounded-md transition-colors">Cancel</button>
-                <button id="clear-confirm-btn"
-                    class="bg-red-600 hover:bg-red-500 text-white font-bold py-2 px-6 rounded-md transition-colors">Clear</button>
+                <button id="clear-cancel-btn" class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-6 rounded-md transition-colors">Cancel</button>
+                <button id="clear-confirm-btn" class="bg-red-600 hover:bg-red-500 text-white font-bold py-2 px-6 rounded-md transition-colors">Clear</button>
             </div>
         </div>
     </div>
@@ -266,24 +237,13 @@
     <div id="audio-container"></div>
 
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getFirestore, doc, getDoc, setDoc, deleteDoc, collection, onSnapshot, updateDoc, arrayUnion, arrayRemove } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-
-        // --- CONFIGURATION ---
-        const firebaseConfig = {
-            apiKey: "AIzaSyCTe4pOBiiwDoUYNEytXS1G1XONdEx_sFY",
-            authDomain: "collabra-f6bf8.firebaseapp.com",
-            projectId: "collabra-f6bf8",
-            storageBucket: "collabra-f6bf8.appspot.com",
-            messagingSenderId: "636699317913",
-            appId: "1:636699317913:web:f1c695f1e8f483a5410a08"
-        };
-
+        // Simplified version without Firebase - using localStorage for basic room management
+        
         // --- ELEMENT SELECTORS ---
         const shareLinkInput = document.getElementById('share-link');
         const copyLinkBtn = document.getElementById('copy-link-btn');
         const connectionStatusDiv = document.getElementById('connection-status');
+        const connectionInfoDiv = document.getElementById('connection-info');
         const canvas = document.getElementById('drawing-canvas');
         const canvasContainer = document.getElementById('canvas-bg');
         const chatMessagesDiv = document.getElementById('chat-messages');
@@ -307,7 +267,7 @@
         const userListDiv = document.getElementById('user-list');
         const fullscreenBtn = document.getElementById('fullscreen-btn');
         const fullscreenOverlay = document.getElementById('fullscreen-overlay');
-        const fullscreenCanvasContainer = document.getElementById('fullscreen-canvas-container');
+        const fullscreenCanvasContainer = document.getElementById('fullscreen-canvas-container');  
         const fullscreenTools = document.getElementById('fullscreen-tools');
         const startCallBtn = document.getElementById('start-call-btn');
         const muteBtn = document.getElementById('mute-btn');
@@ -325,8 +285,8 @@
         let myPeerId = null;
         let roomId = null;
         let isHost = false;
-        let currentColor = '#FFFFFF', currentBrushSize = 5, isErasing = false;
-        let savedColor = '#FFFFFF';
+        let currentColor = '#000000', currentBrushSize = 5, isErasing = false;
+        let savedColor = '#000000';
         const fileChunks = {};
         let userDisplayList = {};
         let drawingHistory = [];
@@ -335,6 +295,8 @@
         let isMuted = false;
         let remoteMuteStates = {};
         let isFullscreen = false;
+        let connectionAttempts = 0;
+        const MAX_CONNECTION_ATTEMPTS = 3;
 
         // --- SVG ICONS ---
         const fileIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="inline-block mr-2 w-5 h-5"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><polyline points="13 2 13 9 20 9"></polyline></svg>`;
@@ -348,6 +310,7 @@
             alertMessage.textContent = message;
             customAlert.classList.remove('hidden');
         };
+        
         alertCloseBtn.addEventListener('click', () => customAlert.classList.add('hidden'));
 
         const generateFriendlyId = (prefix = '') => {
@@ -357,21 +320,6 @@
             const randomNoun = nouns[Math.floor(Math.random() * nouns.length)];
             const randomNum = Math.floor(Math.random() * 100);
             return `${prefix}${randomAdj}-${randomNoun}-${randomNum}`;
-        };
-
-        // --- FIREBASE INITIALIZATION ---
-        const initializeFirebase = async () => {
-            try {
-                const app = initializeApp(firebaseConfig);
-                const db = getFirestore(app);
-                const auth = getAuth(app);
-                await signInAnonymously(auth);
-                return db;
-            } catch (error) {
-                console.error("Firebase initialization failed:", error);
-                showAlert("Could not connect to the service. Please check your Firebase settings.");
-                return null;
-            }
         };
 
         const addChatMessage = (message, sender, type = 'user') => {
@@ -392,17 +340,37 @@
             return bubbleContainer;
         };
 
-        const updateConnectionStatus = (status) => {
-            connectionStatusDiv.textContent = `Status: ${status}`;
-            const statusClasses = { 'Connected': 'bg-green-500', 'Waiting for connection...': 'bg-yellow-500', 'Reconnecting...': 'bg-orange-500' };
-            connectionStatusDiv.className = `text-sm font-medium ${statusClasses[status] || 'bg-red-500'} text-white py-1 px-3 rounded-full transition-colors`;
+        const updateConnectionStatus = (status, info = '') => {
+            const statusText = document.querySelector('#connection-status');
+            statusText.innerHTML = '';
+            
+            const indicator = document.createElement('span');
+            indicator.className = 'status-indicator';
+            
+            let statusClass = 'status-error';
+            if (status.includes('Connected')) statusClass = 'status-connected';
+            else if (status.includes('Waiting') || status.includes('Connecting')) statusClass = 'status-waiting';
+            
+            indicator.classList.add(statusClass);
+            statusText.appendChild(indicator);
+            statusText.appendChild(document.createTextNode(`Status: ${status}`));
+            
+            connectionInfoDiv.textContent = info;
+            
+            const bgClasses = {
+                'Connected': 'bg-green-500',
+                'Waiting for connection...': 'bg-yellow-500',
+                'Connecting...': 'bg-yellow-500',
+                'Reconnecting...': 'bg-orange-500'
+            };
+            statusText.className = `text-sm font-medium ${bgClasses[status] || 'bg-red-500'} text-white py-1 px-3 rounded-full transition-colors`;
         };
 
         const updateUserList = () => {
             userListDiv.innerHTML = '';
             const selfBubble = document.createElement('div');
             selfBubble.className = 'bg-cyan-600 text-white text-sm font-semibold px-3 py-1 rounded-full';
-            selfBubble.textContent = myPeerId.split('-')[0] + ' (You)';
+            selfBubble.textContent = (myPeerId?.split('-')[0] || 'You') + ' (You)' + (isHost ? ' 👑' : '');
             userListDiv.appendChild(selfBubble);
 
             for (const peerId in userDisplayList) {
@@ -429,27 +397,6 @@
             }
         };
 
-        // --- CANVAS BACKGROUND & THEME LOGIC ---
-        const getCanvasBgColor = () => {
-            return '#FFFFFF'; // Always use a white background for drawing
-        }
-
-        const updateTheme = () => {
-            // This function is now just for setting initial tool colors based on bg
-            // The canvas background itself is always white.
-            colorPicker.value = '#000000'; // Default drawing color
-            currentColor = colorPicker.value;
-            savedColor = currentColor;
-            isErasing = false;
-            eraserBtn.classList.remove('active');
-            clearCanvas(false); // Initial clear without broadcasting
-        };
-
-        const drawCanvasBackground = () => {
-            ctx.fillStyle = getCanvasBgColor();
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-        };
-
         // --- CANVAS LOGIC ---
         const applyCanvasStyles = () => {
             ctx = canvas.getContext('2d', { willReadFrequently: true });
@@ -457,16 +404,23 @@
             ctx.lineJoin = 'round';
         };
 
+        const drawCanvasBackground = () => {
+            ctx.fillStyle = '#FFFFFF';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        };
+
         const resizeCanvas = () => {
             const parent = canvas.parentElement;
             const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-
+            
             canvas.width = parent.clientWidth;
             canvas.height = parent.clientHeight;
-
+            
             applyCanvasStyles();
             drawCanvasBackground();
-            ctx.putImageData(imageData, 0, 0);
+            if (canvas.width > 0 && canvas.height > 0) {
+                ctx.putImageData(imageData, 0, 0);
+            }
         };
 
         const getEventCoords = (e) => {
@@ -510,7 +464,11 @@
                 if (peerId !== excludePeer) {
                     const conn = connections[peerId];
                     if (conn && conn.open) {
-                        conn.send(data);
+                        try {
+                            conn.send(data);
+                        } catch (error) {
+                            console.error(`Failed to send data to ${peerId}:`, error);
+                        }
                     }
                 }
             });
@@ -521,7 +479,17 @@
             e.preventDefault();
             const coords = getEventCoords(e);
             drawLine(lastX, lastY, coords.x, coords.y, currentColor, currentBrushSize);
-            const drawData = { type: 'draw', sender: myPeerId, x0: lastX / canvas.width, y0: lastY / canvas.height, x1: coords.x / canvas.width, y1: coords.y / canvas.height, color: currentColor, size: currentBrushSize };
+            const drawData = { 
+                type: 'draw', 
+                sender: myPeerId, 
+                x0: lastX / canvas.width, 
+                y0: lastY / canvas.height, 
+                x1: coords.x / canvas.width, 
+                y1: coords.y / canvas.height, 
+                color: currentColor, 
+                size: currentBrushSize 
+            };
+            
             if (isHost) {
                 broadcast(drawData, myPeerId);
             } else if (connections[roomId]) {
@@ -541,7 +509,7 @@
 
         const clearCanvas = (broadcastClear = true) => {
             drawCanvasBackground();
-            drawingHistory = []; // Clear history as well
+            drawingHistory = [];
             if (broadcastClear) {
                 broadcast({ type: 'clear', sender: myPeerId });
             }
@@ -584,28 +552,82 @@
         const initializePeer = async (id) => {
             myPeerId = id;
             return new Promise((resolve) => {
-                peer = new Peer(myPeerId, { pingInterval: 5000 });
-                peer.on('open', (id) => {
-                    console.log(`PeerJS Open. Your ID is ${id}`);
-                    resolve(peer);
-                });
-                peer.on('connection', (conn) => setupConnection(conn));
-                peer.on('call', (call) => {
-                    call.answer(localStream);
-                    const audio = document.createElement('audio');
-                    call.on('stream', (remoteStream) => {
-                        addAudioStream(audio, remoteStream, call.peer);
+                // Use different PeerJS servers for better reliability
+                const servers = [
+                    { host: 'peerjs-server.herokuapp.com', port: 443, secure: true },
+                    { secure: true, port: 443 }, // Default
+                    { host: '0.peerjs.com', port: 443, secure: true }
+                ];
+                
+                let serverIndex = 0;
+                
+                const tryConnection = () => {
+                    if (serverIndex >= servers.length) {
+                        showAlert("Could not connect to any PeerJS server. Please refresh and try again.");
+                        resolve(null);
+                        return;
+                    }
+                    
+                    const config = servers[serverIndex];
+                    updateConnectionStatus('Connecting...', `Trying server ${serverIndex + 1}/${servers.length}`);
+                    
+                    peer = new Peer(myPeerId, {
+                        ...config,
+                        pingInterval: 5000,
+                        debug: 1
                     });
-                    call.on('close', () => audio.remove());
-                });
-                peer.on('disconnected', () => {
-                    updateConnectionStatus('Reconnecting...');
-                    peer.reconnect();
-                });
-                peer.on('error', (err) => {
-                    showAlert(`A PeerJS error occurred: ${err.type}. Please refresh.`);
-                    resolve(null);
-                });
+
+                    const timeout = setTimeout(() => {
+                        if (peer && !peer.open) {
+                            peer.destroy();
+                            serverIndex++;
+                            tryConnection();
+                        }
+                    }, 10000);
+
+                    peer.on('open', (id) => {
+                        clearTimeout(timeout);
+                        console.log(`PeerJS Open. Your ID is ${id}`);
+                        updateConnectionStatus('Waiting for connection...', `Connected to server ${serverIndex + 1}`);
+                        resolve(peer);
+                    });
+
+                    peer.on('connection', (conn) => setupConnection(conn));
+
+                    peer.on('call', (call) => {
+                        if (localStream) {
+                            call.answer(localStream);
+                        } else {
+                            call.answer();
+                        }
+                        const audio = document.createElement('audio');
+                        call.on('stream', (remoteStream) => {
+                            addAudioStream(audio, remoteStream, call.peer);
+                        });
+                        call.on('close', () => audio.remove());
+                    });
+
+                    peer.on('disconnected', () => {
+                        updateConnectionStatus('Reconnecting...', 'Connection lost, attempting to reconnect...');
+                        if (!peer.destroyed) {
+                            peer.reconnect();
+                        }
+                    });
+
+                    peer.on('error', (err) => {
+                        clearTimeout(timeout);
+                        console.error(`PeerJS error on server ${serverIndex + 1}:`, err);
+                        if (err.type === 'network' || err.type === 'server-error') {
+                            serverIndex++;
+                            tryConnection();
+                        } else {
+                            showAlert(`Connection error: ${err.message}. Please refresh and try again.`);
+                            resolve(null);
+                        }
+                    });
+                };
+                
+                tryConnection();
             });
         };
 
@@ -613,13 +635,14 @@
             conn.on('open', () => {
                 console.log(`Data connection to ${conn.peer} is now open.`);
                 connections[conn.peer] = conn;
+                connectionAttempts = 0; // Reset attempts on successful connection
 
                 if (isHost) {
                     userDisplayList[conn.peer] = {};
                     const userList = [myPeerId, ...Object.keys(userDisplayList)];
                     broadcast({ type: 'user-list-update', users: userList });
                 }
-                updateConnectionStatus('Connected');
+                updateConnectionStatus('Connected', `${Object.keys(connections).length + 1} users in room`);
                 addChatMessage(`${conn.peer.split('-')[0]} has joined the room.`, 'System', 'system');
                 updateUserList();
 
@@ -636,69 +659,97 @@
 
             conn.on('data', (data) => {
                 if (isHost) {
-                    // The data came from conn.peer. Broadcast it to everyone else.
                     broadcast(data, conn.peer);
                 }
 
-                if (data.type === 'file-meta') {
-                    fileChunks[data.fileId] = { chunks: [], name: data.name, size: data.size, mimeType: data.mimeType, receivedSize: 0, msgElement: addChatMessage(`${fileIconSvg}Receiving ${data.name}... <progress id="progress-${data.fileId}" value="0" max="${data.size}" class="w-full mt-2 rounded-full"></progress>`, data.sender.split('-')[0]) };
-                } else if (data.type === 'file-chunk') {
-                    const fileData = fileChunks[data.fileId];
-                    if (!fileData) return;
-                    fileData.chunks.push(data.data);
-                    fileData.receivedSize += data.data.byteLength;
-                    const progress = document.getElementById(`progress-${data.fileId}`);
-                    if (progress) progress.value = fileData.receivedSize;
+                // Handle different data types
+                switch (data.type) {
+                    case 'file-meta':
+                        fileChunks[data.fileId] = { 
+                            chunks: [], 
+                            name: data.name, 
+                            size: data.size, 
+                            mimeType: data.mimeType, 
+                            receivedSize: 0, 
+                            msgElement: addChatMessage(`${fileIconSvg}Receiving ${data.name}... <progress id="progress-${data.fileId}" value="0" max="${data.size}" class="w-full mt-2 rounded-full"></progress>`, data.sender.split('-')[0]) 
+                        };
+                        break;
+                        
+                    case 'file-chunk':
+                        const fileData = fileChunks[data.fileId];
+                        if (!fileData) return;
+                        fileData.chunks.push(data.data);
+                        fileData.receivedSize += data.data.byteLength;
+                        const progress = document.getElementById(`progress-${data.fileId}`);
+                        if (progress) progress.value = fileData.receivedSize;
 
-                    if (fileData.receivedSize === fileData.size) {
-                        const fileBlob = new Blob(fileData.chunks, { type: fileData.mimeType });
-                        const url = URL.createObjectURL(fileBlob);
-                        const actionsContainer = document.createElement('div');
-                        actionsContainer.className = 'flex items-center gap-2 mt-3';
-                        const openBtn = document.createElement('a');
-                        openBtn.innerHTML = `${openIconSvg}Open`;
-                        openBtn.href = url;
-                        openBtn.target = '_blank';
-                        openBtn.className = 'bg-gray-600 hover:bg-gray-500 text-white text-xs px-3 py-1 rounded-full no-underline transition-colors';
-                        const downloadLink = document.createElement('a');
-                        downloadLink.href = url;
-                        downloadLink.download = fileData.name;
-                        downloadLink.innerHTML = `${downloadIconSvg}Download`;
-                        downloadLink.className = "bg-purple-500 hover:bg-purple-600 text-white text-xs px-3 py-1 rounded-full no-underline transition-colors";
-                        actionsContainer.appendChild(openBtn);
-                        actionsContainer.appendChild(downloadLink);
-                        const messageContentDiv = fileData.msgElement.querySelector('.message-content');
-                        if (messageContentDiv) {
-                            messageContentDiv.innerHTML = `${fileIconSvg}Received: ${fileData.name}`;
-                            messageContentDiv.appendChild(actionsContainer);
+                        if (fileData.receivedSize === fileData.size) {
+                            const fileBlob = new Blob(fileData.chunks, { type: fileData.mimeType });
+                            const url = URL.createObjectURL(fileBlob);
+                            const actionsContainer = document.createElement('div');
+                            actionsContainer.className = 'flex items-center gap-2 mt-3';
+                            const openBtn = document.createElement('a');
+                            openBtn.innerHTML = `${openIconSvg}Open`;
+                            openBtn.href = url;
+                            openBtn.target = '_blank';
+                            openBtn.className = 'bg-gray-600 hover:bg-gray-500 text-white text-xs px-3 py-1 rounded-full no-underline transition-colors';
+                            const downloadLink = document.createElement('a');
+                            downloadLink.href = url;
+                            downloadLink.download = fileData.name;
+                            downloadLink.innerHTML = `${downloadIconSvg}Download`;
+                            downloadLink.className = "bg-purple-500 hover:bg-purple-600 text-white text-xs px-3 py-1 rounded-full no-underline transition-colors";
+                            actionsContainer.appendChild(openBtn);
+                            actionsContainer.appendChild(downloadLink);
+                            const messageContentDiv = fileData.msgElement.querySelector('.message-content');
+                            if (messageContentDiv) {
+                                messageContentDiv.innerHTML = `${fileIconSvg}Received: ${fileData.name}`;
+                                messageContentDiv.appendChild(actionsContainer);
+                            }
+                            delete fileChunks[data.fileId];
                         }
-                        delete fileChunks[data.fileId];
-                    }
-                } else if (data.type === 'chat') {
-                    addChatMessage(data.message, data.sender.split('-')[0]);
-                } else if (data.type === 'draw') {
-                    const { x0, y0, x1, y1, color, size } = data;
-                    drawLine(x0 * canvas.width, y0 * canvas.height, x1 * canvas.width, y1 * canvas.height, color, size);
-                } else if (data.type === 'clear') {
-                    clearCanvas(false);
-                } else if (data.type === 'undo') {
-                    undoLastAction(false);
-                }
-                else if (data.type === 'user-list-update') {
-                    userDisplayList = {};
-                    data.users.forEach(userId => {
-                        if (userId !== myPeerId) {
-                            userDisplayList[userId] = {};
+                        break;
+                        
+                    case 'chat':
+                        addChatMessage(data.message, data.sender.split('-')[0]);
+                        break;
+                        
+                    case 'draw':
+                        const { x0, y0, x1, y1, color, size } = data;
+                        drawLine(x0 * canvas.width, y0 * canvas.height, x1 * canvas.width, y1 * canvas.height, color, size);
+                        break;
+                        
+                    case 'clear':
+                        clearCanvas(false);
+                        break;
+                        
+                    case 'undo':
+                        undoLastAction(false);
+                        break;
+                        
+                    case 'user-list-update':
+                        userDisplayList = {};
+                        data.users.forEach(userId => {
+                            if (userId !== myPeerId) {
+                                userDisplayList[userId] = {};
+                            }
+                        });
+                        updateUserList();
+                        break;
+                        
+                    case 'remote-mute':
+                        if (data.target === myPeerId) {
+                            isMuted = data.muted;
+                            if (localStream) {
+                                localStream.getAudioTracks()[0].enabled = !isMuted;
+                            }
+                            updateMuteButton();
                         }
-                    });
-                    updateUserList();
-                } else if (data.type === 'remote-mute' && data.target === myPeerId) {
-                    isMuted = data.muted;
-                    localStream.getAudioTracks()[0].enabled = !isMuted;
-                    updateMuteButton();
-                } else if (data.type === 'hang-up') {
-                    const audioEl = document.getElementById(`audio-${data.sender}`);
-                    if (audioEl) audioEl.remove();
+                        break;
+                        
+                    case 'hang-up':
+                        const audioEl = document.getElementById(`audio-${data.sender}`);
+                        if (audioEl) audioEl.remove();
+                        break;
                 }
             });
 
@@ -710,68 +761,86 @@
                 if (isHost) {
                     broadcast({ type: 'user-list-update', users: [myPeerId, ...Object.keys(userDisplayList)] });
                 }
-                if (Object.keys(connections).length === 0 && !isHost) updateConnectionStatus('Disconnected');
+                const remainingConnections = Object.keys(connections).length;
+                if (remainingConnections === 0 && !isHost) {
+                    updateConnectionStatus('Disconnected', 'All users have left');
+                } else {
+                    updateConnectionStatus('Connected', `${remainingConnections + 1} users in room`);
+                }
                 updateUserList();
             });
 
             conn.on('error', (err) => {
                 console.error(`Connection error with ${conn.peer}:`, err);
-                showAlert(`Could not connect to ${conn.peer}.`);
+                showAlert(`Connection error with ${conn.peer.split('-')[0]}.`);
             });
         };
 
-        const connectToHost = async (db, hostId) => {
+        const connectToHost = async (hostId) => {
             if (!peer || peer.disconnected) {
                 showAlert("Not connected to the service. Please refresh.");
                 return;
             }
             if (!hostId || hostId === myPeerId) return;
 
-            // --- NEW CODE (Correct) ---
-            const roomDocRef = doc(db, "rooms", hostId);
-            const unsubscribe = onSnapshot(roomDocRef, (doc) => {
-                if (doc.exists()) {
-                    // Room exists, now we can connect!
-                    console.log(`Host ${hostId} found. Attempting to connect.`);
-                    unsubscribe(); // Stop listening now that we've found it
-
-                    try {
-                        const conn = peer.connect(hostId, { reliable: true });
+            updateConnectionStatus('Connecting...', `Attempting to join room ${hostId.split('-')[0]}...`);
+            
+            const attemptConnection = () => {
+                try {
+                    const conn = peer.connect(hostId, { 
+                        reliable: true,
+                        serialization: 'json'
+                    });
+                    
+                    const connectionTimeout = setTimeout(() => {
+                        if (!conn.open) {
+                            connectionAttempts++;
+                            if (connectionAttempts < MAX_CONNECTION_ATTEMPTS) {
+                                console.log(`Connection attempt ${connectionAttempts} failed, retrying...`);
+                                updateConnectionStatus('Connecting...', `Retry attempt ${connectionAttempts}/${MAX_CONNECTION_ATTEMPTS}`);
+                                setTimeout(attemptConnection, 2000);
+                            } else {
+                                showAlert("Could not connect to the room. The host may be offline or the room ID is incorrect.");
+                                updateConnectionStatus('Connection Failed', 'Unable to join room');
+                            }
+                        }
+                    }, 10000);
+                    
+                    conn.on('open', () => {
+                        clearTimeout(connectionTimeout);
                         setupConnection(conn);
-                    } catch (error) {
-                        console.error("Connection failed:", error);
-                        showAlert("Failed to connect to the room. Make sure the ID is correct.");
+                    });
+                    
+                    conn.on('error', (err) => {
+                        clearTimeout(connectionTimeout);
+                        console.error("Connection failed:", err);
+                        connectionAttempts++;
+                        if (connectionAttempts < MAX_CONNECTION_ATTEMPTS) {
+                            setTimeout(attemptConnection, 2000);
+                        } else {
+                            showAlert("Failed to connect to the room. Please check the room ID and try again.");
+                        }
+                    });
+                    
+                } catch (error) {
+                    console.error("Connection failed:", error);
+                    connectionAttempts++;
+                    if (connectionAttempts < MAX_CONNECTION_ATTEMPTS) {
+                        setTimeout(attemptConnection, 2000);
+                    } else {
+                        showAlert("Failed to connect to the room. Please refresh and try again.");
                     }
-
-                } else {
-                    // This part will run initially, but we wait.
-                    console.log("Waiting for host to create the room...");
                 }
-            }, (error) => {
-                console.error("Error listening to room document:", error);
-                showAlert("Could not find the room. It may have been closed or the link is wrong.");
-            });
-
-            // Add a timeout to prevent waiting forever
-            setTimeout(() => {
-                unsubscribe();
-            }, 20000); // Stop listening after 20 seconds if no room is found
-
-            console.log(`Attempting to connect to host ${hostId}`);
-            try {
-                const conn = peer.connect(hostId, { reliable: true });
-                setupConnection(conn);
-            } catch (error) {
-                console.error("Connection failed:", error);
-                showAlert("Failed to connect to the room. Make sure the ID is correct.");
-            }
+            };
+            
+            attemptConnection();
         };
 
         const addAudioStream = (audio, stream, peerId) => {
             audio.id = `audio-${peerId}`;
             audio.srcObject = stream;
             audio.addEventListener('loadedmetadata', () => {
-                audio.play();
+                audio.play().catch(e => console.log('Audio play failed:', e));
             });
             audioContainer.append(audio);
         };
@@ -785,12 +854,14 @@
             fullscreenCanvasContainer.appendChild(canvasContainer);
 
             const toolsToMove = [
-                mainToolsContainer.querySelector('.flex.items-center.gap-2'), // color picker container
+                mainToolsContainer.querySelector('.flex.items-center.gap-2'),
                 undoBtn,
                 eraserBtn,
                 clearBtn
             ];
-            toolsToMove.forEach(tool => fullscreenTools.appendChild(tool));
+            toolsToMove.forEach(tool => {
+                if (tool) fullscreenTools.appendChild(tool);
+            });
 
             const exitBtn = document.createElement('button');
             exitBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6m-6 18h6v-6M3 15v6h6M3 9V3h6"/></svg>`;
@@ -808,35 +879,28 @@
             fullscreenOverlay.classList.add('hidden');
             fullscreenOverlay.classList.remove('flex');
 
-            // Move canvas back to its original parent
             leftPanel.appendChild(canvasContainer);
 
             const toolsParentGrid = mainToolsContainer.querySelector('.grid');
-
-            // Select tools from the fullscreen toolbar
             const colorContainer = fullscreenTools.querySelector('.flex.items-center.gap-2');
             const undoButton = fullscreenTools.querySelector('#undo-btn');
             const eraserButton = fullscreenTools.querySelector('#eraser-btn');
             const clearButton = fullscreenTools.querySelector('#clear-btn');
 
-            // Restore tools to their original parent grid in the correct order
-            toolsParentGrid.insertBefore(colorContainer, toolsParentGrid.firstChild);
-            toolsParentGrid.appendChild(undoButton);
-            toolsParentGrid.appendChild(eraserButton);
-            toolsParentGrid.appendChild(clearButton);
+            if (colorContainer) toolsParentGrid.insertBefore(colorContainer, toolsParentGrid.firstChild);
+            if (undoButton) toolsParentGrid.appendChild(undoButton);
+            if (eraserButton) toolsParentGrid.appendChild(eraserButton);
+            if (clearButton) toolsParentGrid.appendChild(clearButton);
 
-            fullscreenTools.innerHTML = ''; // Clean up the fullscreen toolbar
-
+            fullscreenTools.innerHTML = '';
             resizeCanvas();
         };
 
         // --- MAIN APP INITIALIZATION ---
         const main = async () => {
             applyCanvasStyles();
-            updateTheme();
-            const db = await initializeFirebase();
-            if (!db) return;
-
+            drawCanvasBackground();
+            
             roomId = window.location.hash.substring(1);
 
             if (roomId) {
@@ -849,27 +913,25 @@
                 window.history.replaceState(null, '', `#${roomId}`);
             }
 
-            await initializePeer(myPeerId);
+            const peerInstance = await initializePeer(myPeerId);
+            if (!peerInstance) return;
 
             const url = new URL(window.location.href);
             url.hash = roomId;
             shareLinkInput.value = url.href;
             copyLinkBtn.disabled = false;
             updateUserList();
-            updateConnectionStatus('Waiting for connection...');
 
             if (isHost) {
-                const roomDocRef = doc(db, "rooms", roomId);
-                await setDoc(roomDocRef, { host: myPeerId });
+                updateConnectionStatus('Waiting for connection...', 'Room created, share the link to invite others');
             } else {
-                connectToHost(db, roomId);
+                await connectToHost(roomId);
             }
 
-            window.addEventListener('beforeunload', async () => {
-                if (isHost) {
-                    await deleteDoc(doc(db, "rooms", myPeerId));
+            window.addEventListener('beforeunload', () => {
+                if (peer && !peer.destroyed) {
+                    peer.destroy();
                 }
-                if (peer && !peer.destroyed) peer.destroy();
             });
         };
 
@@ -877,6 +939,7 @@
         window.addEventListener('load', main);
         window.addEventListener('resize', resizeCanvas);
 
+        // Canvas events
         canvas.addEventListener('mousedown', startDrawing);
         canvas.addEventListener('mouseup', stopDrawing);
         canvas.addEventListener('mouseout', stopDrawing);
@@ -885,6 +948,7 @@
         canvas.addEventListener('touchend', stopDrawing, { passive: false });
         canvas.addEventListener('touchmove', draw, { passive: false });
 
+        // Tool events
         colorPicker.addEventListener('change', (e) => {
             currentColor = e.target.value;
             savedColor = currentColor;
@@ -902,7 +966,7 @@
             eraserBtn.classList.toggle('active', isErasing);
             if (isErasing) {
                 savedColor = colorPicker.value;
-                currentColor = getCanvasBgColor();
+                currentColor = '#FFFFFF';
             } else {
                 currentColor = savedColor;
                 colorPicker.value = savedColor;
@@ -910,6 +974,7 @@
         });
 
         undoBtn.addEventListener('click', () => undoLastAction());
+        
         window.addEventListener('keydown', (e) => {
             if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
                 e.preventDefault();
@@ -927,16 +992,27 @@
             clearConfirmModal.classList.add('hidden');
         });
 
-        copyLinkBtn.addEventListener('click', () => {
-            shareLinkInput.select();
-            document.execCommand('copy');
-            const originalText = copyLinkBtn.textContent;
-            copyLinkBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5 inline-block mr-1"><polyline points="20 6 9 17 4 12"></polyline></svg>Copied!`;
-            setTimeout(() => {
-                copyLinkBtn.textContent = originalText;
-            }, 2000);
+        // Copy link functionality
+        copyLinkBtn.addEventListener('click', async () => {
+            try {
+                await navigator.clipboard.writeText(shareLinkInput.value);
+                const originalText = copyLinkBtn.textContent;
+                copyLinkBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5 inline-block mr-1"><polyline points="20 6 9 17 4 12"></polyline></svg>Copied!`;
+                setTimeout(() => {
+                    copyLinkBtn.textContent = originalText;
+                }, 2000);
+            } catch (err) {
+                // Fallback for older browsers
+                shareLinkInput.select();
+                document.execCommand('copy');
+                copyLinkBtn.textContent = 'Copied!';
+                setTimeout(() => {
+                    copyLinkBtn.textContent = 'Copy Link';
+                }, 2000);
+            }
         });
 
+        // File sharing
         attachFileBtn.addEventListener('click', () => fileInput.click());
         fileInput.addEventListener('change', (e) => {
             const file = e.target.files[0];
@@ -944,6 +1020,7 @@
             e.target.value = '';
         });
 
+        // Chat functionality
         const sendMessage = () => {
             const message = chatInput.value.trim();
             if (message) {
@@ -963,8 +1040,10 @@
             }
         });
 
+        // Fullscreen
         fullscreenBtn.addEventListener('click', enterFullscreen);
 
+        // Voice chat
         startCallBtn.addEventListener('click', async () => {
             try {
                 localStream = await navigator.mediaDevices.getUserMedia({
@@ -981,7 +1060,6 @@
                 endCallBtn.classList.remove('hidden');
                 updateMuteButton();
 
-                // Call existing peers
                 Object.keys(connections).forEach(peerId => {
                     console.log(`Calling existing peer ${peerId}`);
                     const call = peer.call(peerId, localStream);
@@ -993,7 +1071,7 @@
                 });
             } catch (err) {
                 console.error("Failed to get local stream", err);
-                showAlert("Could not access microphone. Please check permissions.");
+                showAlert("Could not access microphone. Please check permissions and try again.");
             }
         });
 
@@ -1028,8 +1106,6 @@
                 endCallBtn.classList.add('hidden');
             }
         });
-
     </script>
 </body>
-
 </html>
