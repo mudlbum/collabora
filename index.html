@@ -635,8 +635,9 @@
             });
 
             conn.on('data', (data) => {
-                if (isHost && data.sender !== myPeerId) {
-                    broadcast(data, conn.peer); // Host relays data to all other clients
+                if (isHost) {
+                    // The data came from conn.peer. Broadcast it to everyone else.
+                    broadcast(data, conn.peer);
                 }
 
                 if (data.type === 'file-meta') {
