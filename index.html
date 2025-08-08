@@ -865,24 +865,40 @@
                     if (completeFileData && completeFileData.receivedSize === completeFileData.size) {
                         const fileBlob = new Blob(completeFileData.chunks, { type: completeFileData.mimeType });
                         const url = URL.createObjectURL(fileBlob);
-                        const actionsContainer = document.createElement('div');
-                        actionsContainer.className = 'flex items-center gap-2 mt-3';
-
-                        // Create a download button instead of an "open" link
-                        const downloadLink = document.createElement('a');
-                        downloadLink.href = url;
-                        downloadLink.download = completeFileData.name;
-                        downloadLink.innerHTML = `${downloadIconSvg}Download`;
-                        downloadLink.className = "bg-brand-blue hover:bg-blue-500 text-white text-xs px-3 py-1 rounded-full no-underline transition-colors";
-
-                        // Append the single download button
-                        actionsContainer.appendChild(downloadLink);
 
                         const messageContentDiv = completeFileData.msgElement.querySelector('.message-content');
                         if (messageContentDiv) {
-                            messageContentDiv.innerHTML = `${fileIconSvg}Received: ${completeFileData.name}`;
+                            // Clear the progress bar and "Receiving..." text
+                            messageContentDiv.innerHTML = '';
+
+                            // Add file icon and name
+                            messageContentDiv.innerHTML += `${fileIconSvg}Received: <strong>${completeFileData.name}</strong>`;
+
+                            // If the file is an image, create and append an image preview
+                            const isImage = completeFileData.mimeType.startsWith('image/');
+                            if (isImage) {
+                                const imgPreview = document.createElement('img');
+                                imgPreview.src = url;
+                                imgPreview.alt = completeFileData.name;
+                                imgPreview.className = 'max-w-xs rounded-md my-2 border border-brand-border shadow-lg';
+                                messageContentDiv.appendChild(imgPreview);
+                            }
+
+                            // Create a container for the action button
+                            const actionsContainer = document.createElement('div');
+                            actionsContainer.className = 'mt-3';
+
+                            // Create a download link that works for all file types
+                            const downloadLink = document.createElement('a');
+                            downloadLink.href = url;
+                            downloadLink.download = completeFileData.name; // This attribute forces download
+                            downloadLink.innerHTML = `${downloadIconSvg}Download`;
+                            downloadLink.className = "bg-brand-blue hover:bg-blue-500 text-white text-xs px-3 py-1 rounded-full no-underline transition-colors inline-flex items-center";
+
+                            actionsContainer.appendChild(downloadLink);
                             messageContentDiv.appendChild(actionsContainer);
                         }
+
                         delete fileChunks[data.fileId];
                     }
                     break;
