@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -10,20 +11,20 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script>
-      tailwind.config = {
-        theme: {
-          extend: {
-            colors: {
-              'brand-blue': '#3b82f6',
-              'brand-dark': '#111827',
-              'brand-light-dark': '#1f2937',
-              'brand-border': '#374151',
-              'brand-text': '#d1d5db',
-              'brand-text-light': '#9ca3af',
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'brand-blue': '#3b82f6',
+                        'brand-dark': '#111827',
+                        'brand-light-dark': '#1f2937',
+                        'brand-border': '#374151',
+                        'brand-text': '#d1d5db',
+                        'brand-text-light': '#9ca3af',
+                    }
+                }
             }
-          }
         }
-      }
     </script>
     <style>
         body {
@@ -105,24 +106,43 @@
             margin-right: 8px;
         }
 
-        .status-connected { background-color: #22c55e; }
-        .status-waiting { background-color: #f59e0b; }
-        .status-error { background-color: #ef4444; }
+        .status-connected {
+            background-color: #22c55e;
+        }
+
+        .status-waiting {
+            background-color: #f59e0b;
+        }
+
+        .status-error {
+            background-color: #ef4444;
+        }
 
         @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.5;
+            }
         }
-        
-        .status-waiting { animation: pulse 2s infinite; }
+
+        .status-waiting {
+            animation: pulse 2s infinite;
+        }
     </style>
 </head>
 
 <body class="bg-brand-dark text-brand-text flex flex-col h-screen">
-    <header class="bg-brand-light-dark/80 backdrop-blur-sm border-b border-brand-border shadow-md p-4 z-10 flex-shrink-0">
+    <header
+        class="bg-brand-light-dark/80 backdrop-blur-sm border-b border-brand-border shadow-md p-4 z-10 flex-shrink-0">
         <div class="w-full max-w-7xl mx-auto flex justify-between items-center">
             <h1 class="text-2xl font-bold text-white">Collabra</h1>
-            <div id="connection-status" class="text-sm font-medium bg-red-500/20 text-red-300 border border-red-500/30 py-1.5 px-3 rounded-full transition-colors flex items-center">
+            <div id="connection-status"
+                class="text-sm font-medium bg-red-500/20 text-red-300 border border-red-500/30 py-1.5 px-3 rounded-full transition-colors flex items-center">
                 <span class="status-indicator status-error"></span>
                 Not Connected
             </div>
@@ -131,94 +151,150 @@
 
     <main class="flex-grow flex flex-col xl:flex-row w-full max-w-7xl mx-auto p-4 gap-4 overflow-y-auto">
         <div id="left-panel" class="flex flex-col w-full xl:w-2/3 gap-4 order-last xl:order-first">
-            <div class="bg-brand-light-dark border border-brand-border p-4 rounded-lg shadow-lg space-y-4 flex-shrink-0">
+            <div
+                class="bg-brand-light-dark border border-brand-border p-4 rounded-lg shadow-lg space-y-4 flex-shrink-0">
                 <div class="border-b border-brand-border pb-4">
                     <h2 class="text-lg font-semibold mb-3 text-white">Connection</h2>
                     <div class="mt-2">
-                        <label for="share-link" class="text-sm font-medium text-brand-text-light">Share this Room Link to Invite Others</label>
-                        <div class="flex items-center bg-brand-dark rounded-md mt-1 border border-brand-border focus-within:ring-2 focus-within:ring-brand-blue">
-                            <input type="text" id="share-link" class="w-full bg-transparent p-2 border-none focus:ring-0" placeholder="Generating link..." readonly>
-                            <button id="copy-link-btn" class="bg-brand-blue hover:bg-blue-500 text-white font-bold py-2 px-4 rounded-r-md transition-colors" disabled>Copy</button>
+                        <label for="share-link" class="text-sm font-medium text-brand-text-light">Share this Room Link
+                            to Invite Others</label>
+                        <div
+                            class="flex items-center bg-brand-dark rounded-md mt-1 border border-brand-border focus-within:ring-2 focus-within:ring-brand-blue">
+                            <input type="text" id="share-link"
+                                class="w-full bg-transparent p-2 border-none focus:ring-0"
+                                placeholder="Generating link..." readonly>
+                            <button id="copy-link-btn"
+                                class="bg-brand-blue hover:bg-blue-500 text-white font-bold py-2 px-4 rounded-r-md transition-colors"
+                                disabled>Copy</button>
                         </div>
                     </div>
                     <div id="connection-info" class="text-xs text-brand-text-light mt-2"></div>
                 </div>
-                
+
                 <div id="main-tools-container" class="border-b border-brand-border pb-4">
                     <h2 class="text-lg font-semibold mb-3 text-white">Tools</h2>
                     <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4 items-center">
                         <div class="flex items-center gap-2">
                             <label for="color-picker" class="text-sm font-medium text-brand-text-light">Color:</label>
-                            <input type="color" id="color-picker" value="#ffffff" class="w-10 h-10 rounded-md cursor-pointer bg-brand-dark border-2 border-brand-border">
+                            <input type="color" id="color-picker" value="#ffffff"
+                                class="w-10 h-10 rounded-md cursor-pointer bg-brand-dark border-2 border-brand-border">
                         </div>
                         <div class="flex flex-col gap-2 col-span-2 sm:col-span-2 md:col-span-1">
-                            <label for="brush-size" class="text-sm font-medium text-brand-text-light">Size: <span id="brush-size-label">5</span>px</label>
-                            <input type="range" id="brush-size" min="1" max="50" value="5" class="w-full accent-brand-blue">
+                            <label for="brush-size" class="text-sm font-medium text-brand-text-light">Size: <span
+                                    id="brush-size-label">5</span>px</label>
+                            <input type="range" id="brush-size" min="1" max="50" value="5"
+                                class="w-full accent-brand-blue">
                         </div>
-                        <button id="undo-btn" class="tool-btn bg-brand-dark hover:bg-brand-border p-2 rounded-md transition-colors flex items-center justify-center border border-brand-border">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v6h6"/><path d="M21 12a9 9 0 0 0-14.65-6.65L3 9"/></svg>
+                        <button id="undo-btn"
+                            class="tool-btn bg-brand-dark hover:bg-brand-border p-2 rounded-md transition-colors flex items-center justify-center border border-brand-border">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round">
+                                <path d="M3 3v6h6" />
+                                <path d="M21 12a9 9 0 0 0-14.65-6.65L3 9" />
+                            </svg>
                         </button>
-                        <button id="eraser-btn" class="tool-btn bg-brand-dark hover:bg-brand-border p-2 rounded-md transition-colors border border-brand-border">Eraser</button>
-                        <button id="clear-btn" class="bg-red-600/20 hover:bg-red-600/40 text-red-300 p-2 rounded-md transition-colors border border-red-500/30">Clear</button>
+                        <button id="eraser-btn"
+                            class="tool-btn bg-brand-dark hover:bg-brand-border p-2 rounded-md transition-colors border border-brand-border">Eraser</button>
+                        <button id="clear-btn"
+                            class="bg-red-600/20 hover:bg-red-600/40 text-red-300 p-2 rounded-md transition-colors border border-red-500/30">Clear</button>
                     </div>
                 </div>
 
                 <div id="voice-controls-container">
                     <h2 class="text-lg font-semibold mb-3 text-white">Voice Chat</h2>
                     <div class="flex gap-4">
-                        <button id="start-call-btn" class="tool-btn bg-green-600/20 hover:bg-green-600/40 text-green-300 p-2 rounded-md transition-colors flex-grow flex items-center justify-center gap-2 border border-green-500/30">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+                        <button id="start-call-btn"
+                            class="tool-btn bg-green-600/20 hover:bg-green-600/40 text-green-300 p-2 rounded-md transition-colors flex-grow flex items-center justify-center gap-2 border border-green-500/30">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round">
+                                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+                                <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                                <line x1="12" y1="19" x2="12" y2="23" />
+                                <line x1="8" y1="23" x2="16" y2="23" />
+                            </svg>
                             Start Call
                         </button>
-                        <button id="mute-btn" class="tool-btn bg-brand-dark hover:bg-brand-border p-2 rounded-md transition-colors flex-grow flex items-center justify-center gap-2 hidden border border-brand-border"></button>
-                        <button id="end-call-btn" class="tool-btn bg-red-600/20 hover:bg-red-600/40 text-red-300 p-2 rounded-md transition-colors flex-grow flex items-center justify-center gap-2 hidden border border-red-500/30">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7 2 2 0 0 1 1.72 2v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91"/></svg>
+                        <button id="mute-btn"
+                            class="tool-btn bg-brand-dark hover:bg-brand-border p-2 rounded-md transition-colors flex-grow flex items-center justify-center gap-2 hidden border border-brand-border"></button>
+                        <button id="end-call-btn"
+                            class="tool-btn bg-red-600/20 hover:bg-red-600/40 text-red-300 p-2 rounded-md transition-colors flex-grow flex items-center justify-center gap-2 hidden border border-red-500/30">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round">
+                                <path
+                                    d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7 2 2 0 0 1 1.72 2v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91" />
+                            </svg>
                             End Call
                         </button>
                     </div>
                 </div>
             </div>
 
-            <div id="canvas-bg" class="bg-brand-light-dark border border-brand-border rounded-lg shadow-lg flex-grow relative canvas-container p-2">
+            <div id="canvas-bg"
+                class="bg-brand-light-dark border border-brand-border rounded-lg shadow-lg flex-grow relative canvas-container p-2">
                 <canvas id="drawing-canvas"></canvas>
-                <button id="fullscreen-btn" class="absolute top-4 right-4 bg-brand-dark/50 hover:bg-brand-dark/80 text-white p-2 rounded-full transition-opacity border border-brand-border">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+                <button id="fullscreen-btn"
+                    class="absolute top-4 right-4 bg-brand-dark/50 hover:bg-brand-dark/80 text-white p-2 rounded-full transition-opacity border border-brand-border">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path
+                            d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" />
+                    </svg>
                 </button>
             </div>
         </div>
 
-        <div id="right-panel" class="flex flex-col w-full xl:w-1/3 bg-brand-light-dark border border-brand-border rounded-lg shadow-lg overflow-hidden flex-shrink-0 order-first xl:order-last h-[80vh] max-h-[600px] xl:h-auto xl:max-h-full">
+        <div id="right-panel"
+            class="flex flex-col w-full xl:w-1/3 bg-brand-light-dark border border-brand-border rounded-lg shadow-lg overflow-hidden flex-shrink-0 order-first xl:order-last h-[80vh] max-h-[600px] xl:h-auto xl:max-h-full">
             <div class="p-4 border-b border-brand-border">
                 <h2 class="text-lg font-semibold mb-2 text-white">Users in Room</h2>
                 <div id="user-list" class="flex flex-wrap gap-2"></div>
             </div>
             <div id="chat-messages" class="flex-grow p-4 overflow-y-auto flex flex-col-reverse">
-                <div class="text-center text-brand-text-light text-sm my-2">Welcome! Copy the link above to invite friends.</div>
+                <div class="text-center text-brand-text-light text-sm my-2">Welcome! Copy the link above to invite
+                    friends.</div>
             </div>
             <div class="p-4 border-t border-brand-border">
                 <div class="flex gap-2">
                     <input type="file" id="file-input" class="hidden">
-                    <button id="attach-file-btn" class="bg-brand-dark hover:bg-brand-border p-2 rounded-md border border-brand-border transition-colors">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+                    <button id="attach-file-btn"
+                        class="bg-brand-dark hover:bg-brand-border p-2 rounded-md border border-brand-border transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path
+                                d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+                        </svg>
                     </button>
-                    <input type="text" id="chat-input" placeholder="Type a message..." class="flex-grow bg-brand-dark p-2 rounded-md border border-brand-border focus:ring-2 focus:ring-brand-blue focus:border-brand-blue">
-                    <button id="send-chat-btn" class="bg-brand-blue hover:bg-blue-500 text-white font-bold p-2 rounded-md transition-colors flex items-center justify-center">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                    <input type="text" id="chat-input" placeholder="Type a message..."
+                        class="flex-grow bg-brand-dark p-2 rounded-md border border-brand-border focus:ring-2 focus:ring-brand-blue focus:border-brand-blue">
+                    <button id="send-chat-btn"
+                        class="bg-brand-blue hover:bg-blue-500 text-white font-bold p-2 rounded-md transition-colors flex items-center justify-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="22" y1="2" x2="11" y2="13" />
+                            <polygon points="22 2 15 22 11 13 2 9 22 2" />
+                        </svg>
                     </button>
                 </div>
             </div>
         </div>
     </main>
 
-    <div id="fullscreen-overlay" class="fixed inset-0 bg-brand-dark/95 backdrop-blur-sm z-50 hidden flex-col items-center justify-center">
+    <div id="fullscreen-overlay"
+        class="fixed inset-0 bg-brand-dark/95 backdrop-blur-sm z-50 hidden flex-col items-center justify-center">
         <div id="fullscreen-canvas-container" class="w-full h-full p-4 flex items-center justify-center"></div>
-        <div id="fullscreen-tools" class="absolute bottom-4 bg-brand-light-dark/80 border border-brand-border p-3 rounded-xl shadow-lg flex items-center gap-4"></div>
+        <div id="fullscreen-tools"
+            class="absolute bottom-4 bg-brand-light-dark/80 border border-brand-border p-3 rounded-xl shadow-lg flex items-center gap-4">
+        </div>
     </div>
 
     <div id="custom-alert" class="modal-backdrop hidden">
         <div class="modal-content">
             <p id="alert-message" class="text-white"></p>
-            <button id="alert-close-btn" class="bg-brand-dark hover:bg-brand-border text-white font-semibold mt-6 px-6 py-2 rounded-md border border-brand-border">Close</button>
+            <button id="alert-close-btn"
+                class="bg-brand-dark hover:bg-brand-border text-white font-semibold mt-6 px-6 py-2 rounded-md border border-brand-border">Close</button>
         </div>
     </div>
 
@@ -226,8 +302,10 @@
         <div class="modal-content">
             <p id="clear-confirm-message" class="text-white">Are you sure you want to clear the canvas for everyone?</p>
             <div class="mt-6 flex justify-center gap-4">
-                <button id="clear-cancel-btn" class="bg-brand-dark hover:bg-brand-border text-white font-bold py-2 px-6 rounded-md transition-colors border border-brand-border">Cancel</button>
-                <button id="clear-confirm-btn" class="bg-red-600 hover:bg-red-500 text-white font-bold py-2 px-6 rounded-md transition-colors">Clear</button>
+                <button id="clear-cancel-btn"
+                    class="bg-brand-dark hover:bg-brand-border text-white font-bold py-2 px-6 rounded-md transition-colors border border-brand-border">Cancel</button>
+                <button id="clear-confirm-btn"
+                    class="bg-red-600 hover:bg-red-500 text-white font-bold py-2 px-6 rounded-md transition-colors">Clear</button>
             </div>
         </div>
     </div>
@@ -263,7 +341,7 @@
         const userListDiv = document.getElementById('user-list');
         const fullscreenBtn = document.getElementById('fullscreen-btn');
         const fullscreenOverlay = document.getElementById('fullscreen-overlay');
-        const fullscreenCanvasContainer = document.getElementById('fullscreen-canvas-container');  
+        const fullscreenCanvasContainer = document.getElementById('fullscreen-canvas-container');
         const fullscreenTools = document.getElementById('fullscreen-tools');
         const startCallBtn = document.getElementById('start-call-btn');
         const muteBtn = document.getElementById('mute-btn');
@@ -322,7 +400,7 @@
             alertMessage.textContent = message;
             customAlert.classList.remove('hidden');
         };
-        
+
         alertCloseBtn.addEventListener('click', () => customAlert.classList.add('hidden'));
 
         const generateFriendlyId = (prefix = '') => {
@@ -356,21 +434,21 @@
             const statusText = document.querySelector('#connection-status');
             statusText.className = 'text-sm font-medium py-1.5 px-3 rounded-full transition-colors flex items-center';
             statusText.innerHTML = '';
-            
+
             const indicator = document.createElement('span');
             indicator.className = 'status-indicator';
-            
+
             if (status.includes('Connected')) {
                 indicator.classList.add('status-connected');
                 statusText.classList.add('bg-green-500/20', 'text-green-300', 'border', 'border-green-500/30');
             } else if (status.includes('Waiting') || status.includes('Connecting')) {
                 indicator.classList.add('status-waiting');
-                 statusText.classList.add('bg-yellow-500/20', 'text-yellow-300', 'border', 'border-yellow-500/30');
+                statusText.classList.add('bg-yellow-500/20', 'text-yellow-300', 'border', 'border-yellow-500/30');
             } else {
                 indicator.classList.add('status-error');
-                 statusText.classList.add('bg-red-500/20', 'text-red-300', 'border', 'border-red-500/30');
+                statusText.classList.add('bg-red-500/20', 'text-red-300', 'border', 'border-red-500/30');
             }
-            
+
             statusText.appendChild(indicator);
             statusText.appendChild(document.createTextNode(status));
             connectionInfoDiv.textContent = info;
@@ -387,7 +465,7 @@
                 const userData = userDisplayList[peerId];
                 const peerBubble = document.createElement('div');
                 peerBubble.className = 'bg-brand-dark border border-brand-border text-brand-text text-sm font-semibold px-3 py-1 rounded-full flex items-center gap-1';
-                
+
                 let peerName = peerId.split('-')[0];
                 if (userData.isHost) {
                     peerBubble.classList.remove('bg-brand-dark', 'border-brand-border', 'text-brand-text');
@@ -442,9 +520,9 @@
             const parent = canvas.parentElement;
             canvas.width = parent.clientWidth;
             canvas.height = parent.clientHeight;
-            
+
             applyCanvasStyles();
-            
+
             if (tempCanvas.width > 0 && tempCanvas.height > 0) {
                 ctx.drawImage(tempCanvas, 0, 0, tempCanvas.width, tempCanvas.height, 0, 0, canvas.width, canvas.height);
             }
@@ -483,16 +561,16 @@
             if (!drawing) return;
             e.preventDefault();
             const coords = getEventCoords(e);
-            const drawData = { 
-                type: MSG_TYPE.DRAW, 
-                x0: lastX / canvas.width, 
-                y0: lastY / canvas.height, 
-                x1: coords.x / canvas.width, 
-                y1: coords.y / canvas.height, 
-                color: currentColor, 
-                size: currentBrushSize 
+            const drawData = {
+                type: MSG_TYPE.DRAW,
+                x0: lastX / canvas.width,
+                y0: lastY / canvas.height,
+                x1: coords.x / canvas.width,
+                y1: coords.y / canvas.height,
+                color: currentColor,
+                size: currentBrushSize
             };
-            
+
             drawLine(lastX, lastY, coords.x, coords.y, currentColor, currentBrushSize);
             sendData(drawData);
             [lastX, lastY] = [coords.x, coords.y];
@@ -608,7 +686,7 @@
                     pingInterval: 5000,
                     debug: 1,
                 };
-                
+
                 updateConnectionStatus('Connecting...', 'Connecting to signaling server...');
                 peer = new Peer(myPeerId, peerConfig);
 
@@ -652,7 +730,7 @@
                     if (err.type === 'network') {
                         addChatMessage('Network connection to the server was lost. Attempting to reconnect...', 'System', 'system');
                     } else if (err.type !== 'peer-unavailable') {
-                         showAlert(`A connection error occurred: ${err.message}. Please refresh.`);
+                        showAlert(`A connection error occurred: ${err.message}. Please refresh.`);
                     }
                 });
             });
@@ -672,7 +750,7 @@
                 const canvasDataUrl = canvas.toDataURL();
                 conn.send({ type: MSG_TYPE.CANVAS_SYNC, data: canvasDataUrl });
             }
-            
+
             updateConnectionStatus('Connected', `${Object.keys(connections).length + 1} users in room`);
             addChatMessage(`${conn.peer.split('-')[0]} has joined the room.`, 'System', 'system');
             if (!isHost) {
@@ -704,10 +782,10 @@
                 showAlert(`Connection error with ${conn.peer.split('-')[0]}.`);
             });
         };
-        
+
         const handleDisconnect = (peerId) => {
             console.log(`Connection from ${peerId} closed.`);
-            
+
             const audioEl = document.getElementById(`audio-${peerId}`);
             if (audioEl) audioEl.remove();
 
@@ -720,19 +798,19 @@
                 addChatMessage(`${peerId.split('-')[0]} has left the room.`, 'System', 'system');
                 delete connections[peerId];
                 delete userDisplayList[peerId];
-                
+
                 if (isHost) {
                     const userMap = { ...userDisplayList };
                     userMap[myPeerId] = { isHost: true };
                     broadcast({ type: MSG_TYPE.USER_LIST_UPDATE, users: userMap });
                 }
             }
-            
+
             const remainingConnections = Object.keys(connections).length;
             if (isHost) {
                 updateConnectionStatus('Connected', `${remainingConnections + 1} users in room`);
             }
-            
+
             updateUserList();
         };
 
@@ -768,9 +846,9 @@
                     updateUserList();
                     break;
                 case MSG_TYPE.FILE_META:
-                    fileChunks[data.fileId] = { 
-                        chunks: [], name: data.name, size: data.size, mimeType: data.mimeType, receivedSize: 0, 
-                        msgElement: addChatMessage(`${fileIconSvg}Receiving ${data.name}... <progress id="progress-${data.fileId}" value="0" max="${data.size}" class="w-full mt-2 rounded-full"></progress>`, data.sender.split('-')[0]) 
+                    fileChunks[data.fileId] = {
+                        chunks: [], name: data.name, size: data.size, mimeType: data.mimeType, receivedSize: 0,
+                        msgElement: addChatMessage(`${fileIconSvg}Receiving ${data.name}... <progress id="progress-${data.fileId}" value="0" max="${data.size}" class="w-full mt-2 rounded-full"></progress>`, data.sender.split('-')[0])
                     };
                     break;
                 case MSG_TYPE.FILE_CHUNK:
@@ -789,18 +867,17 @@
                         const url = URL.createObjectURL(fileBlob);
                         const actionsContainer = document.createElement('div');
                         actionsContainer.className = 'flex items-center gap-2 mt-3';
-                        const openBtn = document.createElement('a');
-                        openBtn.innerHTML = `${openIconSvg}Open`;
-                        openBtn.href = url;
-                        openBtn.target = '_blank';
-                        openBtn.className = 'bg-brand-dark hover:bg-brand-border text-white text-xs px-3 py-1 rounded-full no-underline transition-colors border border-brand-border';
+
+                        // Create a download button instead of an "open" link
                         const downloadLink = document.createElement('a');
                         downloadLink.href = url;
                         downloadLink.download = completeFileData.name;
                         downloadLink.innerHTML = `${downloadIconSvg}Download`;
                         downloadLink.className = "bg-brand-blue hover:bg-blue-500 text-white text-xs px-3 py-1 rounded-full no-underline transition-colors";
-                        actionsContainer.appendChild(openBtn);
+
+                        // Append the single download button
                         actionsContainer.appendChild(downloadLink);
+
                         const messageContentDiv = completeFileData.msgElement.querySelector('.message-content');
                         if (messageContentDiv) {
                             messageContentDiv.innerHTML = `${fileIconSvg}Received: ${completeFileData.name}`;
@@ -831,17 +908,17 @@
             if (!hostId || hostId === myPeerId) return;
 
             updateConnectionStatus('Connecting...', `Attempting to join room ${hostId.split('-')[0]}...`);
-            
+
             const attemptConnection = () => {
                 if (connectionAttempts >= MAX_CONNECTION_ATTEMPTS) {
                     showAlert("Could not connect to the room. The host may be offline or the room ID is incorrect.");
                     updateConnectionStatus('Connection Failed', 'Unable to join room');
                     return;
                 }
-                
+
                 try {
                     const conn = peer.connect(hostId, { reliable: true, serialization: 'json' });
-                    
+
                     const connectionTimeout = setTimeout(() => {
                         if (!conn.open) {
                             connectionAttempts++;
@@ -850,12 +927,12 @@
                             attemptConnection();
                         }
                     }, 10000);
-                    
+
                     conn.on('open', () => {
                         clearTimeout(connectionTimeout);
                         setupConnection(conn);
                     });
-                    
+
                     conn.on('error', (err) => {
                         clearTimeout(connectionTimeout);
                         console.error("Connection failed:", err);
@@ -868,7 +945,7 @@
                     attemptConnection();
                 }
             };
-            
+
             attemptConnection();
         };
 
@@ -886,7 +963,7 @@
         const enterFullscreen = () => {
             if (!fullscreenOverlay.classList.contains('hidden')) return;
             isFullscreen = true;
-            
+
             toolOriginalPositions = [];
             const toolsToMove = [
                 mainToolsContainer.querySelector('.flex.items-center.gap-2'), // color
@@ -895,7 +972,7 @@
                 eraserBtn,
                 clearBtn
             ];
-            
+
             toolsToMove.forEach(tool => {
                 if (tool) {
                     toolOriginalPositions.push({
@@ -944,9 +1021,9 @@
         // --- MAIN APP INITIALIZATION ---
         const main = async () => {
             applyCanvasStyles();
-            resizeCanvas(); 
+            resizeCanvas();
             drawCanvasBackground();
-            
+
             roomId = window.location.hash.substring(1);
 
             if (roomId) {
@@ -970,7 +1047,7 @@
 
             if (isHost) {
                 updateConnectionStatus('Waiting for connection...', 'Room created, share the link to invite others');
-                saveHistory(); 
+                saveHistory();
             } else {
                 await connectToHost(roomId);
             }
@@ -1019,7 +1096,7 @@
         });
 
         undoBtn.addEventListener('click', () => undoLastAction());
-        
+
         window.addEventListener('keydown', (e) => {
             if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
                 e.preventDefault();
@@ -1139,4 +1216,5 @@
         });
     </script>
 </body>
+
 </html>
