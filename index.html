@@ -528,10 +528,21 @@
             }
         };
 
+        // --- FIXED COORDINATE CALCULATION ---
         const getEventCoords = (e) => {
             const rect = canvas.getBoundingClientRect();
             const event = e.touches ? e.touches[0] : e;
-            return { x: event.clientX - rect.left, y: event.clientY - rect.top };
+            
+            // Calculate mouse position relative to the canvas's bounding box
+            const x = event.clientX - rect.left;
+            const y = event.clientY - rect.top;
+
+            // Scale the coordinates to match the canvas's internal resolution
+            // This corrects for any discrepancy between the CSS size and the canvas attribute size
+            const scaledX = x * (canvas.width / rect.width);
+            const scaledY = y * (canvas.height / rect.height);
+
+            return { x: scaledX, y: scaledY };
         };
 
         const saveHistory = () => {
@@ -558,8 +569,7 @@
             ctx.lineTo(x1, y1);
             ctx.stroke();
         };
-
-        // --- REFACTORED DRAWING LOGIC ---
+        
         const drawAndSendData = (x0, y0, x1, y1, color, size) => {
             drawLine(x0, y0, x1, y1, color, size);
             const drawData = {
@@ -573,12 +583,13 @@
             };
             sendData(drawData);
         };
-
+        
         const startDrawing = (e) => {
             e.preventDefault();
             drawing = true;
             const coords = getEventCoords(e);
             [lastX, lastY] = [coords.x, coords.y];
+            // Draw a single point on mousedown/touchstart to handle clicks
             drawAndSendData(lastX, lastY, coords.x, coords.y, currentColor, currentBrushSize);
         };
 
