@@ -541,13 +541,6 @@
             drawingHistory.push(canvas.toDataURL());
         };
 
-        const startDrawing = (e) => {
-            e.preventDefault();
-            drawing = true;
-            const coords = getEventCoords(e);
-            [lastX, lastY] = [coords.x, coords.y];
-        };
-
         const stopDrawing = (e) => {
             if (!drawing) return;
             e.preventDefault();
@@ -557,25 +550,6 @@
             }
         };
 
-        const draw = (e) => {
-            if (!drawing) return;
-            e.preventDefault();
-            const coords = getEventCoords(e);
-            const drawData = {
-                type: MSG_TYPE.DRAW,
-                x0: lastX / canvas.width,
-                y0: lastY / canvas.height,
-                x1: coords.x / canvas.width,
-                y1: coords.y / canvas.height,
-                color: currentColor,
-                size: currentBrushSize
-            };
-
-            drawLine(lastX, lastY, coords.x, coords.y, currentColor, currentBrushSize);
-            sendData(drawData);
-            [lastX, lastY] = [coords.x, coords.y];
-        };
-
         const drawLine = (x0, y0, x1, y1, color, size) => {
             ctx.beginPath();
             ctx.strokeStyle = color;
@@ -583,6 +557,37 @@
             ctx.moveTo(x0, y0);
             ctx.lineTo(x1, y1);
             ctx.stroke();
+        };
+
+        // --- REFACTORED DRAWING LOGIC ---
+        const drawAndSendData = (x0, y0, x1, y1, color, size) => {
+            drawLine(x0, y0, x1, y1, color, size);
+            const drawData = {
+                type: MSG_TYPE.DRAW,
+                x0: x0 / canvas.width,
+                y0: y0 / canvas.height,
+                x1: x1 / canvas.width,
+                y1: y1 / canvas.height,
+                color: color,
+                size: size
+            };
+            sendData(drawData);
+        };
+
+        const startDrawing = (e) => {
+            e.preventDefault();
+            drawing = true;
+            const coords = getEventCoords(e);
+            [lastX, lastY] = [coords.x, coords.y];
+            drawAndSendData(lastX, lastY, coords.x, coords.y, currentColor, currentBrushSize);
+        };
+
+        const draw = (e) => {
+            if (!drawing) return;
+            e.preventDefault();
+            const coords = getEventCoords(e);
+            drawAndSendData(lastX, lastY, coords.x, coords.y, currentColor, currentBrushSize);
+            [lastX, lastY] = [coords.x, coords.y];
         };
 
         const clearCanvas = () => {
