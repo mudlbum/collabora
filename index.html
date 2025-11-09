@@ -691,9 +691,11 @@
             readSlice(0);
         };
 
-        // --- PEERJS LOGIC ---
+// --- PEERJS LOGIC ---
         const initializePeer = (id) => {
             myPeerId = id;
+            let isInitialized = false; // Flag to prevent re-resolving the promise
+
             return new Promise((resolve) => {
                 const peerConfig = {
                     host: '0.peerjs.com',
@@ -717,8 +719,19 @@
                 peer.on('open', (id) => {
                     clearTimeout(timeout);
                     console.log(`PeerJS Open. Your ID is ${id}`);
-                    updateConnectionStatus('Waiting for connection...', `Ready to connect`);
-                    resolve(peer);
+
+                    // On a reconnect, restore the host's "Waiting" status
+                    if (isInitialized && isHost) {
+                        updateConnectionStatus('Waiting for connection...', 'Room created, share the link to invite others');
+                    } else {
+                        // On initial load, just show a generic "ready"
+                        updateConnectionStatus('Waiting for connection...', `Ready to connect`);
+                    }
+
+                    if (!isInitialized) {
+                        isInitialized = true;
+                        resolve(peer); // Only resolve on the first open
+                    }
                 });
 
                 peer.on('connection', (conn) => {
@@ -743,15 +756,25 @@
 
                 peer.on('error', (err) => {
                     console.error(`PeerJS error:`, err);
-                    if (err.type === 'network') {
-                        addChatMessage('Network connection to the server was lost. Attempting to reconnect...', 'System', 'system');
+
+                    // Don't alert for common, non-fatal errors
+                    if (err.type === 'peer-unavailable' || err.type === 'negotiation-failed') {
+                        console.warn(`PeerJS non-fatal error: ${err.type}`);
+                        return;
+                    }
+
+                    // For network or server-related errors, try to reconnect
+                    if (peer && !peer.destroyed && ['network', 'server-error', 'socket-error', 'webrtc'].includes(err.type)) {
+                        updateConnectionStatus('Reconnecting...', `Error: ${err.message}. Retrying...`);
+                        peer.reconnect();
                     } else if (err.type !== 'peer-unavailable') {
+                        // For other errors, show alert
                         showAlert(`A connection error occurred: ${err.message}. Please refresh.`);
                     }
                 });
             });
         };
-
+        
         const setupConnection = (conn) => {
             console.log(`Data connection to ${conn.peer} is now open.`);
             connections[conn.peer] = conn;
